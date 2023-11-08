@@ -13,7 +13,7 @@ from core.Spectrum import Spectrum
 
 
 def main():
-    spectrum = Spectrum(args.config)
+    spectrum = Spectrum(args.config, args.systematic)
     spectrum.compute_differential_cross_sections()
     spectrum.save(args.output)
 
@@ -31,6 +31,12 @@ if __name__ == "__main__":
         "--output",
         default="output.root",
         help="Output file of the unfolding results.",
+    )
+    parser.add_argument(
+        "-s",
+        "--systematic",
+        default="nominal",
+        help="Systematic to unfold.",
     )
     args = parser.parse_args()
 
