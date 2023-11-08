@@ -13,14 +13,12 @@ from core.Spectrum import Spectrum
 
 
 def main():
-    spectrum = Spectrum(config=args.config)
+    spectrum = Spectrum(args.config)
     spectrum.compute_differential_cross_sections()
     spectrum.save(args.output)
 
 
 if __name__ == "__main__":
-
-    # Parser settings
     parser = ap.ArgumentParser(description="Parsing input arguments.")
     parser.add_argument(
         "-c",
@@ -36,5 +34,4 @@ if __name__ == "__main__":
     )
     args = parser.parse_args()
 
-    # Main program
     main()

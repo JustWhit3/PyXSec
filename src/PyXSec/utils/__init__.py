@@ -2,8 +2,7 @@
 #
 # File name:  __init__.py
 # Author:     Gianluca Bianco (biancogianluca9@gmail.com)
-# Date:       2023-11-06
+# Date:       2023-11-07
 # Copyright:  (c) 2023 Gianluca Bianco under the MIT license.
 
-from .core import Spectrum
-from .utils import get_custom_logger
+from .CustomLogger import get_custom_logger
