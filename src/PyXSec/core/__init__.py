@@ -6,3 +6,4 @@
 # Copyright:  (c) 2023 Gianluca Bianco under the MIT license.
 
 from .Spectrum import Spectrum
+from .Unfolder import Unfolder
