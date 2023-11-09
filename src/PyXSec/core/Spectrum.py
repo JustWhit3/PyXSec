@@ -378,14 +378,9 @@ class Spectrum:
         # Initialize unfolder settings
         staterr_arr = self.staterr.split(":")
         if len(staterr_arr) == 1 and staterr_arr[0] == "analytical":
-<<<<<<< HEAD
             self.unfolder = Unfolder(
                 self.method, "kCovToy", self.unfolding_parameter, self.nToys
             )
-=======
-            self.unfolder = Unfolder(self.method, "kCovToy", self.unfolding_parameter)
-            self.unfolder.SetNToys(self.nToys)
->>>>>>> 7de6d00fdf7f53c74acd86efce67e543127c8ea4
         else:
             self.unfolder = Unfolder(self.method, "kNoError", self.unfolding_parameter)
             if len(staterr_arr) == 1 and staterr_arr[0] == "toys":
