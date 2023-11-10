@@ -8,6 +8,9 @@
 # Data science modules
 import ROOT
 
+# Personal modules
+from utils import transpose_matrix
+
 
 class Unfolder:
     """
@@ -31,15 +34,17 @@ class Unfolder:
         self.nToys = nToys
 
         # Histograms
-        self.h_data = None
-        self.h_reco = None
-        self.h_truth = None
-        self.h_generated = None
-        self.h_response = None
-        self.h_unfolded = None
+        self.h_data = ROOT.TH1D()
+        self.h_reco = ROOT.TH1D()
+        self.h_truth = ROOT.TH1D()
+        self.h_generated = ROOT.TH1D()
+        self.h_response = ROOT.TH2D()
+        self.h_unfolded = ROOT.TH1D()
 
         # Other
         self.m_unfolder = None
+        self.transpose_response = False
+        self.m_response = ROOT.RooUnfoldResponse()
 
         # Choose unfolding method
         if self.method == "Inversion":
@@ -55,3 +60,106 @@ class Unfolder:
             self.m_unfolder == ROOT.RooUnfoldBinByBin()
         self.m_unfolder.SetNToys(self.nToys)
         self.m_unfolder.SetRegParm(self.parameter)
+        self.m_unfolder.SetVerbose(0)
+
+    def set_data_histogram(self, histo):
+        """
+        Set the data histogram.
+
+        Args:
+            histo (TH1D): The input data histogram.
+        """
+
+        histo.Copy(self.h_data)
+        self.h_data.SetName("unf_Data")
+        self.h_data.SetDirectory(0)
+
+    def set_reco_histogram(self, histo):
+        """
+        Set the reconstructed signal histogram.
+
+        Args:
+            histo (TH1D or None): The input histogram. If None, the internal histogram remains unchanged.
+
+        """
+
+        if histo is not None:
+            histo.Copy(self.h_reco)
+        self.h_reco.SetName("unf_SignalReco")
+        self.h_reco.SetDirectory(0)
+
+    def set_truth_histogram(self, histo):
+        """
+        Set the true signal histogram.
+
+        Args:
+            histo (TH1D or None): The input histogram. If None, the internal histogram remains unchanged.
+        """
+
+        if histo is not None:
+            histo.Copy(self.h_truth)
+        self.h_truth.SetName("unf_SignalTruth")
+        self.h_truth.SetDirectory(0)
+
+    def set_generated_histogram(self, histo):
+        """
+        Set the generated histogram.
+
+        Args:
+            histo (TH1D): The input histogram.
+        """
+
+        histo.Copy(self.h_generated)
+        self.h_generated.SetName("unf_Generated")
+        self.h_generated.SetDirectory(0)
+
+    def set_response_histogram(self, histo, to_transpose=False):
+        """
+        Set the response matrix histogram.
+
+        Args:
+            histo (TH2D): The input response matrix histogram.
+            to_transpose (bool, optional): Whether to transpose the response matrix. Default is False.
+
+        """
+
+        histo.Copy(self.h_response)
+        self.h_response.SetName("unf_Response")
+        self.transpose_response = to_transpose
+        if self.transpose_response:
+            transpose_matrix(self.h_response)
+        self.h_response.SetDirectory(0)
+
+    def do_unfold(self, keep_response=False):
+        """
+        Perform the unfolding.
+
+        Args:
+            keep_response (bool, optional): Whether to keep the existing response matrix. Default is False.
+        """
+
+        # Re-initialize the response if doesn't exist
+        if keep_response == False:
+            name = "{}_response".format(self.h_response.GetName())
+            self.m_response = ROOT.RooUnfoldResponse(
+                ROOT.TH1D(),  # TODO: verificare che questa segnatura vada bene, Marino usava NULL
+                ROOT.TH1D(),
+                self.h_response,
+                name,
+                name,
+            )
+            self.m_response.UseOverflow(False)
+            self.m_unfolder.SetResponse(self.m_response)
+            self.m_unfolder.SetMeasured(self.h_data)
+
+        # Unfolded distribution settings
+        if self.error == "kNoError":
+            self.h_unfolded = self.m_unfolder.Hunfold(
+                0
+            )  # TODO: hReco sostituito con hUnfold dato che è deprecato
+        elif self.error == "kCovToy":
+            self.h_unfolded = self.m_unfolder.Hunfold(
+                2
+            )  # TODO: controlla qui https://roounfold.web.cern.ch/classRooUnfoldT.html#a20b6790ae84e8393465a50752c711142
+        self.h_unfolded.SetName("unf_Unfolded")
+        self.h_unfolded.SetDirectory(0)

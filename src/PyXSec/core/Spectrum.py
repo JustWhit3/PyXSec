@@ -20,6 +20,7 @@ from utils import (
     try_parse_float,
     try_parse_str,
     transpose_matrix,
+    divide_by_bin_width,
 )
 
 # Logger settings
@@ -83,14 +84,21 @@ class Spectrum:
         self.nToys = 10000
         self.m_nbins = 0
         self.m_bins = None
+        self.m_totalXs = 0.0
 
         # Histograms
-        self.h_data = None
-        self.h_signal_reco = None
-        self.h_response = None
-        self.h_generated = None
-        self.h_background = None
-        self.h_data_minus_bkg = None
+        self.h_data = ROOT.TH1D()
+        self.h_signal_reco = ROOT.TH1D()
+        self.h_signal_truth = ROOT.TH1D()
+        self.h_response = ROOT.TH2D()
+        self.h_generated = ROOT.TH1D()
+        self.h_background = ROOT.TH1D()
+        self.h_data_minus_bkg = ROOT.TH1D()
+        self.h_efficiency = ROOT.TH1D()
+        self.h_acceptance = ROOT.TH1D()
+        self.h_data_unfolded = ROOT.TH1D()
+        self.h_absXs = ROOT.TH1D()
+        self.h_relXs = ROOT.TH1D()
 
         # Other
         self.m_output = None
@@ -322,7 +330,7 @@ class Spectrum:
         """
 
         # Initial settings
-        log.info("Initializing loaded histograms")
+        log.info("Initializing loaded histograms...")
         if self.output == "":
             self.output = "{0}_{1}_{2}_DiffXs.root".format(
                 self.syst_name, self.method, self.unfolding_parameter
@@ -376,7 +384,9 @@ class Spectrum:
                     self.unfolding_parameter = 2
 
         # Initialize unfolder settings
-        staterr_arr = self.staterr.split(":")
+        staterr_arr = self.staterr.split(
+            ":"
+        )  # TODO: qui si può rimuovere un po' di roba
         if len(staterr_arr) == 1 and staterr_arr[0] == "analytical":
             self.unfolder = Unfolder(
                 self.method, "kCovToy", self.unfolding_parameter, self.nToys
@@ -399,8 +409,65 @@ class Spectrum:
             )
         self.is_initialized = True
 
-    def compute_differential_cross_sections(self):
-        pass
+    def compute_differential_cross_sections(self, error="kNoError"):
+        """
+        Compute differential cross sections measurement using input data parsed from the XML configuration file.
+
+        Args:
+            error (str, optional): the error treatment type for unfolding. Defaults to "kNoError".
+        """
+
+        # Set dir as root
+        ROOT.gDirectory.cd()  # TODO: check this
+
+        # Signal truth histogram
+        self.h_signal_truth = self.h_response.ProjectionY(
+            "SignalTruth", 1, self.m_nbins
+        )
+        self.h_signal_truth.SetDirectory(self.m_output)
+
+        # Evaluate the efficiency
+        self.h_efficiency = self.h_response.ProjectionY("Efficiency", 1, self.m_nbins)
+        self.h_efficiency.SetDirectory(self.m_output)
+        self.h_efficiency.Divide(self.h_generated)
+
+        # Evaluate the acceptance
+        self.h_acceptance = self.h_response.ProjectionX("Acceptance", 1, self.m_nbins)
+        self.h_acceptance.Divide(self.h_signal_reco)
+        self.h_acceptance.SetDirectory(self.m_output)
+
+        # Data - background subtraction
+        h_data_minus_background_corrected = self.h_data_minus_bkg.Clone(
+            "DataMinusBkgCorrected"
+        )
+        h_data_minus_background_corrected.SetTitle("(Data - Bkg ) x Acceptance")
+        h_data_minus_background_corrected.SetDirectory(self.m_output)
+        h_data_minus_background_corrected.Multiply(self.h_acceptance)
+
+        # Set-up unfolder
+        self.unfolder.set_data_histogram(h_data_minus_background_corrected)
+        self.unfolder.set_reco_histogram(self.h_signal_reco)
+        self.unfolder.set_truth_histogram(self.h_signal_truth)
+        self.unfolder.set_generated_histogram(self.h_generated)
+        self.unfolder.set_response_histogram(self.h_response)
+        self.unfolder.do_unfold()
+
+        # Create absolute cross-section
+        self.h_data_unfolded = self.unfolder.h_unfolded.Clone("DataUnfolded")
+        self.h_data_unfolded.SetDirectory(self.m_output)
+        self.h_absXs = self.unfolder.h_unfolded.Clone()
+        self.h_absXs.SetName("AbsoluteDiffXs")
+        self.h_absXs.SetDirectory(self.m_output)
+
+        # Apply efficiency correction
+        self.h_absXs.Divide(self.h_efficiency)
+        self.m_totalXs = self.h_absXs.Integral()
+        log.info("Total cross-section (abs/eff): {}".format(self.m_totalXs))
+        self.h_relXs = self.h_absXs.Clone("RelativeDiffXs")
+        self.h_relXs.Scale(1.0 / self.m_totalXs)
+        divide_by_bin_width(self.h_relXs)
+        divide_by_bin_width(self.h_absXs)
+        self.h_absXs.Scale(1 / self.lumi)
 
     def save(self):
         pass
