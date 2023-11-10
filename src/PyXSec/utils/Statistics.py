@@ -67,3 +67,22 @@ def divide_by_bin_width(histo):
                 error = histo.GetBinError(i, j)
                 histo.SetBinContent(i, j, content / width)
                 histo.SetBinError(i, j, error / width)
+
+
+def run_toy(histo, toy_type):
+    """
+    Run a toy experiment on a ROOT histogram.
+
+    Args:
+        histo (ROOT.TH1): Input histogram.
+        toy_type (str): Type of toy experiment. Use "Poisson" for Poisson distribution or any other string for Gaussian smearing.
+    """
+
+    nbins = histo.GetNbinsX()
+    for i in range(1, nbins + 1):
+        mean = histo.GetBinContent(i)
+        if toy_type == "Poisson":
+            smear = ROOT.gRandom.PoissonD(mean)
+        else:
+            smear = ROOT.gRandom.Gaus(mean, histo.GetBinError(i))
+        histo.SetBinContent(i, smear)

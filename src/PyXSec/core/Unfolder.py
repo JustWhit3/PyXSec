@@ -141,9 +141,14 @@ class Unfolder:
         # Re-initialize the response if doesn't exist
         if keep_response == False:
             name = "{}_response".format(self.h_response.GetName())
+            nbins = self.h_response.GetNbinsX()
+            min_bin = self.h_response.GetXaxis().GetBinLowEdge(1)
+            max_bin = self.h_response.GetXaxis().GetBinUpEdge(
+                self.h_response.GetNbinsX()
+            )
             self.m_response = ROOT.RooUnfoldResponse(
-                ROOT.TH1D(),  # TODO: verificare che questa segnatura vada bene, Marino usava NULL
-                ROOT.TH1D(),
+                ROOT.TH1D("", "", nbins, min_bin, max_bin),
+                ROOT.TH1D("", "", nbins, min_bin, max_bin),
                 self.h_response,
                 name,
                 name,
@@ -154,12 +159,19 @@ class Unfolder:
 
         # Unfolded distribution settings
         if self.error == "kNoError":
-            self.h_unfolded = self.m_unfolder.Hunfold(
-                0
-            )  # TODO: hReco sostituito con hUnfold dato che è deprecato
+            self.h_unfolded = self.m_unfolder.Hunfold(self.m_unfolder.kNoError)
         elif self.error == "kCovToy":
-            self.h_unfolded = self.m_unfolder.Hunfold(
-                2
-            )  # TODO: controlla qui https://roounfold.web.cern.ch/classRooUnfoldT.html#a20b6790ae84e8393465a50752c711142
+            self.h_unfolded = self.m_unfolder.Hunfold(self.m_unfolder.kCovToys)
         self.h_unfolded.SetName("unf_Unfolded")
         self.h_unfolded.SetDirectory(0)
+
+    def reset(self):
+        """
+        Reset the Unfolder object and associated histograms.
+        """
+
+        self.h_response.SetDirectory(0)
+        self.m_unfolder.Reset()
+        if self.method == "kBayes":
+            self.unfolder.SetSmoothing(0)
+        self.m_unfolder.SetVerbose(0)
