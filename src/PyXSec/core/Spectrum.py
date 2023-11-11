@@ -8,7 +8,6 @@
 # Generic modules
 import xml.etree.ElementTree as et
 import sys
-from tqdm import tqdm
 
 # Data science modules
 import ROOT
@@ -101,10 +100,6 @@ class Spectrum:
         self.h_data_unfolded = ROOT.TH1D()
         self.h_absXs = ROOT.TH1D()
         self.h_relXs = ROOT.TH1D()
-        self.h_abs_pull_fit_mean = ROOT.TH1D()
-        self.h_rel_pull_fit_mean = ROOT.TH1D()
-        self.h_abs_pull_fit_error = ROOT.TH1D()
-        self.h_rel_pull_fit_error = ROOT.TH1D()
 
         # Other
         self.m_output = None
@@ -516,15 +511,14 @@ class Spectrum:
             ROOT.gDirectory.cd()  # TODO: check this
             h_unfolded = self.unfolder.h_unfolded.Clone()
             h_unfolded.SetDirectory(0)
-            self.h_abs_pull_fit_mean = h_unfolded.Clone("PullTestMean_abs")
-            self.h_abs_pull_fit_mean.Reset()
-            self.h_abs_pull_fit_error = h_unfolded.Clone("PullTestError_abs")
-            self.h_abs_pull_fit_error.Reset()
-
-            self.h_rel_pull_fit_mean = h_unfolded.Clone("PullTestMean_rel")
-            self.h_rel_pull_fit_mean.Reset()
-            self.h_rel_pull_fit_error = h_unfolded.Clone("PullTestError_rel")
-            self.h_rel_pull_fit_error.Reset()
+            h_abs_pull_fit_mean = h_unfolded.Clone("PullTestMean_abs")
+            h_abs_pull_fit_mean.Reset()
+            h_abs_pull_fit_error = h_unfolded.Clone("PullTestError_abs")
+            h_abs_pull_fit_error.Reset()
+            h_rel_pull_fit_mean = h_unfolded.Clone("PullTestMean_rel")
+            h_rel_pull_fit_mean.Reset()
+            h_rel_pull_fit_error = h_unfolded.Clone("PullTestError_rel")
+            h_rel_pull_fit_error.Reset()
 
             # Allocate the histograms
             for i in range(0, self.m_nbins):
@@ -677,6 +671,8 @@ class Spectrum:
                 h_absXs_smeared.Divide(h_efficiency_smeared)
                 h_absXs_smeared.Scale(1.0 / self.lumi)
                 integratedXs_smeared = h_absXs_smeared.Integral()
+                h_totalXs.Fill(integratedXs_smeared)
+                h_relXs_smeared = h_absXs_smeared.Clone()
                 h_relXs_smeared.SetDirectory(0)
                 h_relXs_smeared.Scale(1.0 / integratedXs_smeared)
                 h_unfolded = self.unfolder.h_unfolded.Clone()
@@ -684,24 +680,22 @@ class Spectrum:
                 divide_by_bin_width(h_absXs_smeared)
 
                 for b in range(0, self.m_nbins):
-                    value_abs, value_rel, value_data, value_unfold = (
-                        h_relXs_smeared.GetBinContent(b + 1),
-                        h_absXs_smeared.GetBinContent(b + 1),
-                        h_data_smeared.GetBinContent(b + 1),
-                        h_unfolded.GetBinContent(b + 1),
-                    )
-
+                    value_rel = h_relXs_smeared.GetBinContent(b + 1)
                     h_bin_toys_rel[b].Fill(value_rel)
                     v_branch_rel[b] = value_rel
                     v_toys_rel[b][i] = value_rel
                     m_sx_rel[b] += value_rel
 
+                    value_abs = h_absXs_smeared.GetBinContent(b + 1)
                     h_bin_toys_abs[b].Fill(value_abs)
                     v_branch_abs[b] = value_abs
                     v_toys_abs[b][i] = value_abs
                     m_sx_abs[b] += value_abs
 
+                    value_data = h_data_smeared.GetBinContent(b + 1)
                     h_bin_toys_data[b].Fill(value_data)
+
+                    value_unfold = h_unfolded.GetBinContent(b + 1)
                     h_bin_toys_unfold[b].Fill(value_unfold)
 
                     for j in range(0, b + 1):
@@ -710,7 +704,61 @@ class Spectrum:
                         value_abs_2 = h_absXs_smeared.GetBinContent(j + 1)
                         m_sxy_abs[b][j] += value_abs * value_abs_2
 
+            # Stat errors and fitting pulls
             log.info("Setting stat errors and fitting pulls...")
+            for b in range(self.m_nbins):
+                m_sx_abs[b] /= self.nToys
+                m_sx_rel[b] /= self.nToys
+
+                for j in range(b + 1):
+                    m_sxy_rel[b][j] /= self.nToys
+                    m_sxy_abs[b][j] /= self.nToys
+
+                    if b != j:
+                        m_sxy_rel[j][b] = m_sxy_rel[b][j]
+                        m_sxy_abs[j][b] = m_sxy_abs[b][j]
+
+                for toy in range(0, len(v_toys_abs[b])):
+                    h_bin_toys_rel_pull[b].Fill(
+                        (v_toys_rel[b][toy] - self.h_relXs.GetBinContent(b + 1))
+                        / h_bin_toys_rel[b].GetRMS()
+                    )
+                    h_bin_toys_abs_pull[b].Fill(
+                        (v_toys_abs[b][toy] - self.h_absXs.GetBinContent(b + 1))
+                        / h_bin_toys_abs[b].GetRMS()
+                    )
+
+                RMS_rel = h_bin_toys_rel[b].GetRMS()
+                self.h_relXs.SetBinError(b + 1, RMS_rel)
+
+                RMS_abs = h_bin_toys_abs[b].GetRMS()
+                self.h_absXs.SetBinError(b + 1, RMS_abs)
+
+                h_bin_toys_rel[b].Fit(func_rel[b].GetName())
+                h_bin_toys_rel_pull[b].Fit(func_rel_pull[b].GetName())
+
+                h_rel_pull_fit_mean.SetBinContent(
+                    b + 1, func_rel_pull[b].GetParameter(1)
+                )
+                h_rel_pull_fit_mean.SetBinError(b + 1, func_rel_pull[b].GetParError(1))
+                h_rel_pull_fit_error.SetBinContent(
+                    b + 1, func_rel_pull[b].GetParameter(2)
+                )
+                h_rel_pull_fit_error.SetBinError(b + 1, func_rel_pull[b].GetParError(2))
+
+                h_bin_toys_abs[b].Fit(func_abs[b].GetName())
+                h_bin_toys_abs_pull[b].Fit(func_abs_pull[b].GetName())
+
+                h_abs_pull_fit_mean.SetBinContent(
+                    b + 1, func_abs_pull[b].GetParameter(1)
+                )
+                h_abs_pull_fit_mean.SetBinError(b + 1, func_abs_pull[b].GetParError(1))
+                h_abs_pull_fit_error.SetBinContent(
+                    b + 1, func_abs_pull[b].GetParameter(2)
+                )
+                h_abs_pull_fit_error.SetBinError(b + 1, func_abs_pull[b].GetParError(2))
+
+        # build_matrices()
 
     def save(self):
         pass
