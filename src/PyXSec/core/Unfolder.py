@@ -146,16 +146,41 @@ class Unfolder:
             max_bin = self.h_response.GetXaxis().GetBinUpEdge(
                 self.h_response.GetNbinsX()
             )
+
+            # x = self.h_response.ProjectionX()
+            # x.Reset()
+            # for i in range(0, nbins + 2):
+            #    somma = 0
+            #    error = 0
+            #    for j in range(0, nbins + 2):
+            #        somma += self.h_response.GetBinContent(i, j)
+            #        error += self.h_response.GetBinError(i, j) ** 2
+            #
+            #    x.SetBinContent(i, somma)
+            #    x.SetBinError(i, error**0.5)
+            #
+            # y = self.h_response.ProjectionY()
+            # y.Reset()
+            # for i in range(1, nbins + 1):
+            #    somma = 0
+            #    error = 0
+            #    for j in range(1, nbins + 1):
+            #        somma += self.h_response.GetBinContent(j, i)
+            #        error += self.h_response.GetBinError(j, i) ** 2
+            #
+            #    y.SetBinContent(i, somma)
+            #    y.SetBinError(i, error**0.5)
+
             self.m_response = ROOT.RooUnfoldResponse(
-                ROOT.TH1D("", "", nbins, min_bin, max_bin),
-                ROOT.TH1D("", "", nbins, min_bin, max_bin),
+                self.h_response.ProjectionX(),
+                self.h_response.ProjectionY(),
                 self.h_response,
                 name,
                 name,
             )
-            self.m_response.UseOverflow(False)
-            self.m_unfolder.SetResponse(self.m_response)
-            self.m_unfolder.SetMeasured(self.h_data)
+        self.m_response.UseOverflow(False)
+        self.m_unfolder.SetResponse(self.m_response)
+        self.m_unfolder.SetMeasured(self.h_data)
 
         # Unfolded distribution settings
         if self.error == "kNoError":

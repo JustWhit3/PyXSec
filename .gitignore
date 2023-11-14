@@ -3,3 +3,4 @@ HEP_deps
 **/.mypy_cache
 private
 **/__pycache__
+.vscode

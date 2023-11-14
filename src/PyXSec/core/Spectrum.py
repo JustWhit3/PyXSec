@@ -8,6 +8,7 @@
 # Generic modules
 import xml.etree.ElementTree as et
 import sys
+import math
 
 # Data science modules
 import ROOT
@@ -86,6 +87,7 @@ class Spectrum:
         self.m_nbins = 0
         self.m_bins = None
         self.m_totalXs = 0.0
+        self.m_totalXs_stat_err = 0.0
 
         # Histograms
         self.h_data = ROOT.TH1D()
@@ -100,11 +102,21 @@ class Spectrum:
         self.h_data_unfolded = ROOT.TH1D()
         self.h_absXs = ROOT.TH1D()
         self.h_relXs = ROOT.TH1D()
+        self.h_absXs_covariance = ROOT.TH1D()
+        self.h_absXs_correlation = ROOT.TH1D()
+        self.h_relXs_covariance = ROOT.TH1D()
+        self.h_relXs_correlation = ROOT.TH1D()
+        self.h_absXs_variance = ROOT.TH1D()
+        self.h_relXs_variance = ROOT.TH1D()
 
         # Other
         self.m_output = None
         self.unfolder = None
         self.m_toy_tree = ROOT.TTree()
+        self.v_toys_abs = []
+        self.v_toys_rel = []
+        self.m_sx_abs = []
+        self.m_sx_rel = []
 
         # Prepare inputs
         self._configure()
@@ -230,7 +242,7 @@ class Spectrum:
             integral = h_temp.IntegralAndError(1, h_temp.GetNbinsX(), error)
             self.h_signal_reco.SetBinContent(1, integral)
             self.h_signal_reco.SetBinError(1, error)
-        self.h_signal_reco.ClearUnderflowAndOverflow()
+        self.h_signal_reco.ClearUnderflowAndOverflow()  # TODO: remove this
         self.h_signal_reco.SetDirectory(0)
 
         # Load response matrix
@@ -238,9 +250,12 @@ class Spectrum:
         f_temp = ROOT.TFile.Open(self.input_res_path)
         f_temp.cd()
         h_response_temp = ROOT.gDirectory.Get(self.histo_res_path)
+
         if self.do_total_cross_section == 0:
             label = h_response_temp.GetXaxis().GetBinLabel(1)
-            if label == "":  # this means that we are doing a 2D unfolding
+            if (
+                label == ""
+            ):  # this means that we are doing a 2D unfolding # TODO: remove?
                 binningX = h_response_temp.GetXaxis().GetXbins().GetArray()
                 binningY = h_response_temp.GetYaxis().GetXbins().GetArray()
                 self.h_response = ROOT.TH2D(
@@ -487,8 +502,6 @@ class Spectrum:
             func_rel = [ROOT.TF1() for _ in range(self.m_nbins)]
             func_abs_pull = [ROOT.TF1() for _ in range(self.m_nbins)]
             func_rel_pull = [ROOT.TF1() for _ in range(self.m_nbins)]
-            v_branch_rel = [0.0] * self.m_nbins
-            v_branch_abs = [0.0] * self.m_nbins
 
             h_totalXs = ROOT.TH1D(
                 "totalXs", "totalXs", 100, 0.5 * self.m_totalXs, 1.5 * self.m_totalXs
@@ -506,8 +519,12 @@ class Spectrum:
             h_absXs_smeared = ROOT.TH1D()
 
             integratedXs_smeared = 0
-            f_toys = ROOT.TFile()
+            v_branch_rel = [
+                0.0
+            ] * self.m_nbins  # TODO: this two can probably be removed
+            v_branch_abs = [0.0] * self.m_nbins
 
+            # Set-up pull histograms
             ROOT.gDirectory.cd()  # TODO: check this
             h_unfolded = self.unfolder.h_unfolded.Clone()
             h_unfolded.SetDirectory(0)
@@ -560,19 +577,22 @@ class Spectrum:
                     (1 + 1.5 * rel_err) * mean,
                 )
                 h_bin_toys_abs[i].SetDirectory(self.m_output)
+
                 mean = self.h_data.GetBinContent(i + 1)
-                h_bin_toys_abs[i] = ROOT.TH1D(
+                h_bin_toys_data[i] = ROOT.TH1D(
                     f"Data_toy_bin_{i}",
                     f"Data_toy_bin_{i}",
                     100,
                     (1 - 1.5 * rel_err) * mean,
                     (1 + 1.5 * rel_err) * mean,
                 )
-                h_bin_toys_abs[i].SetDirectory(self.m_output)
+                h_bin_toys_data[i].SetDirectory(self.m_output)
+
                 h_bin_toys_abs_pull[i] = ROOT.TH1D(
                     f"Abs_toyPull_bin_{i}", f"Abs_toyPull_bin_{i}", 100, -3, 3
                 )
                 h_bin_toys_abs_pull[i].SetDirectory(self.m_output)
+
                 func_abs[i] = ROOT.TF1(
                     f"Gaus_abs_{i}",
                     "gaus(0)",
@@ -594,24 +614,26 @@ class Spectrum:
                 h_bin_toys_unfold[i].SetDirectory(self.m_output)
 
             # Allocating lists for toys
-            m_sx_abs = [0] * self.m_nbins
-            m_sx_rel = [0] * self.m_nbins
-            m_sxy_abs = [[0] * self.m_nbins for _ in range(self.m_nbins)]
-            m_sxy_rel = [[0] * self.m_nbins for _ in range(self.m_nbins)]
-            v_toys_abs = [[] for _ in range(self.m_nbins)]
-            v_toys_rel = [[] for _ in range(self.m_nbins)]
+            self.m_sx_abs = [0.0] * self.m_nbins
+            self.m_sx_rel = [0.0] * self.m_nbins
+            m_sxy_abs = [[0.0] * self.m_nbins for _ in range(self.m_nbins)]
+            m_sxy_rel = [[0.0] * self.m_nbins for _ in range(self.m_nbins)]
+            self.v_toys_abs = [[0.0] for _ in range(self.m_nbins)]
+            self.v_toys_rel = [[0.0] for _ in range(self.m_nbins)]
 
-            for i in range(self.m_nbins):
-                m_sx_abs[i] = 0
-                m_sx_rel[i] = 0
+            for i in range(self.m_nbins):  # TODO: this block can probably be removed
+                self.m_sx_abs[i] = 0
+                self.m_sx_rel[i] = 0
                 m_sxy_abs[i] = [0] * self.m_nbins
                 m_sxy_rel[i] = [0] * self.m_nbins
                 for j in range(self.m_nbins):
                     m_sxy_abs[i][j] = 0
                     m_sxy_rel[i][j] = 0
-                v_toys_abs[i] = [0] * self.nToys
-                v_toys_rel[i] = [0] * self.nToys
+                self.v_toys_abs[i] = [0] * self.nToys
+                self.v_toys_rel[i] = [0] * self.nToys
 
+            # Pseudo-experiments code ehre
+            log.info("Starting pseudo-experiments...")
             ROOT.gDirectory.cd()
 
             # Initialize smearing histograms
@@ -661,15 +683,19 @@ class Spectrum:
                 self.unfolder.set_response_histogram(h_response_smeared)
                 if self.ignore_background == False:
                     h_data_smeared_corrected.Add(h_bkg_smeared, -1)
-                h_data_smeared_corrected.Multiply(h_acceptance_smeared)
+                h_data_smeared_corrected.Multiply(
+                    h_acceptance_smeared
+                )  # Nominal acceptance
 
                 # Unfold again
                 self.unfolder.set_data_histogram(h_data_smeared_corrected)
                 self.unfolder.do_unfold()
+
                 h_absXs_smeared = self.unfolder.h_unfolded.Clone()
                 h_absXs_smeared.SetDirectory(0)
                 h_absXs_smeared.Divide(h_efficiency_smeared)
                 h_absXs_smeared.Scale(1.0 / self.lumi)
+
                 integratedXs_smeared = h_absXs_smeared.Integral()
                 h_totalXs.Fill(integratedXs_smeared)
                 h_relXs_smeared = h_absXs_smeared.Clone()
@@ -679,18 +705,18 @@ class Spectrum:
                 divide_by_bin_width(h_relXs_smeared)
                 divide_by_bin_width(h_absXs_smeared)
 
-                for b in range(0, self.m_nbins):
+                for b in range(self.m_nbins):
                     value_rel = h_relXs_smeared.GetBinContent(b + 1)
                     h_bin_toys_rel[b].Fill(value_rel)
                     v_branch_rel[b] = value_rel
-                    v_toys_rel[b][i] = value_rel
-                    m_sx_rel[b] += value_rel
+                    self.v_toys_rel[b][i] = value_rel
+                    self.m_sx_rel[b] += value_rel
 
                     value_abs = h_absXs_smeared.GetBinContent(b + 1)
                     h_bin_toys_abs[b].Fill(value_abs)
                     v_branch_abs[b] = value_abs
-                    v_toys_abs[b][i] = value_abs
-                    m_sx_abs[b] += value_abs
+                    self.v_toys_abs[b][i] = value_abs
+                    self.m_sx_abs[b] += value_abs
 
                     value_data = h_data_smeared.GetBinContent(b + 1)
                     h_bin_toys_data[b].Fill(value_data)
@@ -707,8 +733,8 @@ class Spectrum:
             # Stat errors and fitting pulls
             log.info("Setting stat errors and fitting pulls...")
             for b in range(self.m_nbins):
-                m_sx_abs[b] /= self.nToys
-                m_sx_rel[b] /= self.nToys
+                self.m_sx_abs[b] /= self.nToys
+                self.m_sx_rel[b] /= self.nToys
 
                 for j in range(b + 1):
                     m_sxy_rel[b][j] /= self.nToys
@@ -718,13 +744,13 @@ class Spectrum:
                         m_sxy_rel[j][b] = m_sxy_rel[b][j]
                         m_sxy_abs[j][b] = m_sxy_abs[b][j]
 
-                for toy in range(0, len(v_toys_abs[b])):
+                for toy in range(len(self.v_toys_abs[b])):
                     h_bin_toys_rel_pull[b].Fill(
-                        (v_toys_rel[b][toy] - self.h_relXs.GetBinContent(b + 1))
+                        (self.v_toys_rel[b][toy] - self.h_relXs.GetBinContent(b + 1))
                         / h_bin_toys_rel[b].GetRMS()
                     )
                     h_bin_toys_abs_pull[b].Fill(
-                        (v_toys_abs[b][toy] - self.h_absXs.GetBinContent(b + 1))
+                        (self.v_toys_abs[b][toy] - self.h_absXs.GetBinContent(b + 1))
                         / h_bin_toys_abs[b].GetRMS()
                     )
 
@@ -734,8 +760,8 @@ class Spectrum:
                 RMS_abs = h_bin_toys_abs[b].GetRMS()
                 self.h_absXs.SetBinError(b + 1, RMS_abs)
 
-                h_bin_toys_rel[b].Fit(func_rel[b].GetName())
-                h_bin_toys_rel_pull[b].Fit(func_rel_pull[b].GetName())
+                h_bin_toys_rel[b].Fit(func_rel[b].GetName(), "Q")
+                h_bin_toys_rel_pull[b].Fit(func_rel_pull[b].GetName(), "Q")
 
                 h_rel_pull_fit_mean.SetBinContent(
                     b + 1, func_rel_pull[b].GetParameter(1)
@@ -746,8 +772,8 @@ class Spectrum:
                 )
                 h_rel_pull_fit_error.SetBinError(b + 1, func_rel_pull[b].GetParError(2))
 
-                h_bin_toys_abs[b].Fit(func_abs[b].GetName())
-                h_bin_toys_abs_pull[b].Fit(func_abs_pull[b].GetName())
+                h_bin_toys_abs[b].Fit(func_abs[b].GetName(), "Q")
+                h_bin_toys_abs_pull[b].Fit(func_abs_pull[b].GetName(), "Q")
 
                 h_abs_pull_fit_mean.SetBinContent(
                     b + 1, func_abs_pull[b].GetParameter(1)
@@ -758,7 +784,93 @@ class Spectrum:
                 )
                 h_abs_pull_fit_error.SetBinError(b + 1, func_abs_pull[b].GetParError(2))
 
-        # build_matrices()
+            # Build covariance and correlation matrices
+            self._build_matrices()
+            self.m_totalXs_stat_err = h_totalXs.GetRMS()
+
+    def _build_matrices(self):
+        """
+        Build covariance and correlation matrices.
+        Covariance: cov(i,j) = 1/N * sum_n (data_i - mean_i) * (data_j - mean_j)
+        """
+
+        # Create covariance and correlation histograms
+        self.h_absXs_covariance = self.h_response.Clone("Covariance_abs")
+        self.h_absXs_covariance.Reset()
+        self.h_relXs_covariance = self.h_absXs_covariance.Clone("Covariance_rel")
+        self.h_absXs_variance = self.h_data.Clone("Variance_abs")
+        self.h_absXs_variance.Reset()
+        self.h_relXs_variance = self.h_absXs_variance.Clone("Variance_rel")
+        self.h_absXs_correlation = self.h_absXs_covariance.Clone("Correlation_abs")
+        self.h_relXs_correlation = self.h_absXs_covariance.Clone("Correlation_rel")
+
+        # Set directories to root
+        for histo in [
+            self.h_absXs_covariance,
+            self.h_relXs_covariance,
+            self.h_absXs_variance,
+            self.h_relXs_variance,
+            self.h_relXs_correlation,
+            self.h_absXs_correlation,
+        ]:
+            histo.SetDirectory(0)
+
+        # Inizializza le matrici
+        for i in range(self.m_nbins):
+            for j in range(i + 1):
+                num_abs, den1_abs, den2_abs = 0.0, 0.0, 0.0
+                num_rel, den1_rel, den2_rel = 0.0, 0.0, 0.0
+
+                # Compute covariance with: cov(i,j) = 1/N * sum_n (data_i - mean_i) * (data_j - mean_j)
+                # TODO: qui si può ottimizzare raggruppando le operazioni
+                for itoy in range(self.nToys):
+                    num_abs += (
+                        (self.v_toys_abs[i][itoy] - self.m_sx_abs[i])
+                        * (self.v_toys_abs[j][itoy] - self.m_sx_abs[j])
+                        / self.nToys
+                    )
+                    num_rel += (
+                        (self.v_toys_rel[i][itoy] - self.m_sx_rel[i])
+                        * (self.v_toys_rel[j][itoy] - self.m_sx_rel[j])
+                        / self.nToys
+                    )
+                    den1_abs += (
+                        (self.v_toys_abs[i][itoy] - self.m_sx_abs[i])
+                        * (self.v_toys_abs[i][itoy] - self.m_sx_abs[i])
+                        / self.nToys
+                    )
+                    den2_abs += (
+                        (self.v_toys_abs[j][itoy] - self.m_sx_abs[j])
+                        * (self.v_toys_abs[j][itoy] - self.m_sx_abs[j])
+                        / self.nToys
+                    )
+                    den1_rel += (
+                        (self.v_toys_rel[i][itoy] - self.m_sx_rel[i])
+                        * (self.v_toys_rel[i][itoy] - self.m_sx_rel[i])
+                        / self.nToys
+                    )
+                    den2_rel += (
+                        (self.v_toys_rel[j][itoy] - self.m_sx_rel[j])
+                        * (self.v_toys_rel[j][itoy] - self.m_sx_rel[j])
+                        / self.nToys
+                    )
+
+                # Compute correlations
+                corr_abs = num_abs / math.sqrt(den1_abs * den2_abs)
+                self.h_absXs_covariance.SetBinContent(i + 1, j + 1, num_abs)
+                self.h_absXs_correlation.SetBinContent(i + 1, j + 1, corr_abs)
+                corr_rel = num_rel / math.sqrt(den1_rel * den2_rel)
+                self.h_relXs_covariance.SetBinContent(i + 1, j + 1, num_rel)
+                self.h_relXs_correlation.SetBinContent(i + 1, j + 1, corr_rel)
+
+                if i != j:
+                    self.h_absXs_covariance.SetBinContent(j + 1, i + 1, num_abs)
+                    self.h_absXs_correlation.SetBinContent(j + 1, i + 1, corr_abs)
+                    self.h_relXs_covariance.SetBinContent(j + 1, i + 1, num_rel)
+                    self.h_relXs_correlation.SetBinContent(j + 1, i + 1, corr_rel)
+                else:
+                    self.h_relXs_variance.SetBinContent(i + 1, num_rel)
+                    self.h_absXs_variance.SetBinContent(i + 1, num_abs)
 
     def save(self):
         pass
