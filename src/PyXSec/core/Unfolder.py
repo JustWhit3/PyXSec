@@ -141,36 +141,6 @@ class Unfolder:
         # Re-initialize the response if doesn't exist
         if keep_response == False:
             name = "{}_response".format(self.h_response.GetName())
-            nbins = self.h_response.GetNbinsX()
-            min_bin = self.h_response.GetXaxis().GetBinLowEdge(1)
-            max_bin = self.h_response.GetXaxis().GetBinUpEdge(
-                self.h_response.GetNbinsX()
-            )
-
-            # x = self.h_response.ProjectionX()
-            # x.Reset()
-            # for i in range(0, nbins + 2):
-            #    somma = 0
-            #    error = 0
-            #    for j in range(0, nbins + 2):
-            #        somma += self.h_response.GetBinContent(i, j)
-            #        error += self.h_response.GetBinError(i, j) ** 2
-            #
-            #    x.SetBinContent(i, somma)
-            #    x.SetBinError(i, error**0.5)
-            #
-            # y = self.h_response.ProjectionY()
-            # y.Reset()
-            # for i in range(1, nbins + 1):
-            #    somma = 0
-            #    error = 0
-            #    for j in range(1, nbins + 1):
-            #        somma += self.h_response.GetBinContent(j, i)
-            #        error += self.h_response.GetBinError(j, i) ** 2
-            #
-            #    y.SetBinContent(i, somma)
-            #    y.SetBinError(i, error**0.5)
-
             self.m_response = ROOT.RooUnfoldResponse(
                 self.h_response.ProjectionX(),
                 self.h_response.ProjectionY(),

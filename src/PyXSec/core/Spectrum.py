@@ -34,6 +34,9 @@ if not loaded_RooUnfold == 0:
     log.error("RooUnfold not found!")
     sys.exit(0)
 
+# Hide legend
+ROOT.gStyle.SetOptStat(0)
+
 
 class Spectrum:
     """
@@ -108,6 +111,10 @@ class Spectrum:
         self.h_relXs_correlation = ROOT.TH1D()
         self.h_absXs_variance = ROOT.TH1D()
         self.h_relXs_variance = ROOT.TH1D()
+        self.h_abs_pull_fit_error = ROOT.TH1D()
+        self.h_rel_pull_fit_error = ROOT.TH1D()
+        self.h_abs_pull_fit_mean = ROOT.TH1D()
+        self.h_rel_pull_fit_mean = ROOT.TH1D()
 
         # Other
         self.m_output = None
@@ -366,21 +373,37 @@ class Spectrum:
 
         # Data histogram
         self.h_data.SetName("Data")
+        self.h_data.SetStats(0)
         self.h_data.SetDirectory(self.m_output)
 
         # Signal-reco histogram
+        self.h_signal_reco.SetStats(0)
         self.h_signal_reco.SetDirectory(self.m_output)
         self.h_signal_reco.SetName("SignalReco")
 
         # Response histogram
         self.h_response.SetDirectory(self.m_output)
+        self.h_response.GetXaxis().SetTitle(self.h_data.GetXaxis().GetTitle())
+        self.h_response.GetYaxis().SetTitle(
+            "{}(particle)".format(self.h_data.GetXaxis().GetTitle()).replace(
+                "Detector-level", "Particle-level"
+            )
+        )
+        self.h_response.GetYaxis().SetTitleOffset(1.05)
+        self.h_response.SetTitle(
+            "{}(particle)".format(
+                self.h_data.GetXaxis().GetTitle().replace("Detector-level ", "")
+            )
+        )
         self.h_response.SetName("Response")
 
         # Background histogram
+        self.h_background.SetStats(0)
         self.h_background.SetDirectory(self.m_output)
         self.h_background.SetName("Background")
 
         # Generated histogram
+        self.h_generated.SetStats(0)
         self.h_generated.SetName("Generated")
         self.h_generated.SetDirectory(self.m_output)
 
@@ -528,14 +551,14 @@ class Spectrum:
             ROOT.gDirectory.cd()  # TODO: check this
             h_unfolded = self.unfolder.h_unfolded.Clone()
             h_unfolded.SetDirectory(0)
-            h_abs_pull_fit_mean = h_unfolded.Clone("PullTestMean_abs")
-            h_abs_pull_fit_mean.Reset()
-            h_abs_pull_fit_error = h_unfolded.Clone("PullTestError_abs")
-            h_abs_pull_fit_error.Reset()
-            h_rel_pull_fit_mean = h_unfolded.Clone("PullTestMean_rel")
-            h_rel_pull_fit_mean.Reset()
-            h_rel_pull_fit_error = h_unfolded.Clone("PullTestError_rel")
-            h_rel_pull_fit_error.Reset()
+            self.h_abs_pull_fit_mean = h_unfolded.Clone("PullTestMean_abs")
+            self.h_abs_pull_fit_mean.Reset()
+            self.h_abs_pull_fit_error = h_unfolded.Clone("PullTestError_abs")
+            self.h_abs_pull_fit_error.Reset()
+            self.h_rel_pull_fit_mean = h_unfolded.Clone("PullTestMean_rel")
+            self.h_rel_pull_fit_mean.Reset()
+            self.h_rel_pull_fit_error = h_unfolded.Clone("PullTestError_rel")
+            self.h_rel_pull_fit_error.Reset()
 
             # Allocate the histograms
             for i in range(0, self.m_nbins):
@@ -763,26 +786,34 @@ class Spectrum:
                 h_bin_toys_rel[b].Fit(func_rel[b].GetName(), "Q")
                 h_bin_toys_rel_pull[b].Fit(func_rel_pull[b].GetName(), "Q")
 
-                h_rel_pull_fit_mean.SetBinContent(
+                self.h_rel_pull_fit_mean.SetBinContent(
                     b + 1, func_rel_pull[b].GetParameter(1)
                 )
-                h_rel_pull_fit_mean.SetBinError(b + 1, func_rel_pull[b].GetParError(1))
-                h_rel_pull_fit_error.SetBinContent(
+                self.h_rel_pull_fit_mean.SetBinError(
+                    b + 1, func_rel_pull[b].GetParError(1)
+                )
+                self.h_rel_pull_fit_error.SetBinContent(
                     b + 1, func_rel_pull[b].GetParameter(2)
                 )
-                h_rel_pull_fit_error.SetBinError(b + 1, func_rel_pull[b].GetParError(2))
+                self.h_rel_pull_fit_error.SetBinError(
+                    b + 1, func_rel_pull[b].GetParError(2)
+                )
 
                 h_bin_toys_abs[b].Fit(func_abs[b].GetName(), "Q")
                 h_bin_toys_abs_pull[b].Fit(func_abs_pull[b].GetName(), "Q")
 
-                h_abs_pull_fit_mean.SetBinContent(
+                self.h_abs_pull_fit_mean.SetBinContent(
                     b + 1, func_abs_pull[b].GetParameter(1)
                 )
-                h_abs_pull_fit_mean.SetBinError(b + 1, func_abs_pull[b].GetParError(1))
-                h_abs_pull_fit_error.SetBinContent(
+                self.h_abs_pull_fit_mean.SetBinError(
+                    b + 1, func_abs_pull[b].GetParError(1)
+                )
+                self.h_abs_pull_fit_error.SetBinContent(
                     b + 1, func_abs_pull[b].GetParameter(2)
                 )
-                h_abs_pull_fit_error.SetBinError(b + 1, func_abs_pull[b].GetParError(2))
+                self.h_abs_pull_fit_error.SetBinError(
+                    b + 1, func_abs_pull[b].GetParError(2)
+                )
 
             # Build covariance and correlation matrices
             self._build_matrices()
@@ -872,5 +903,57 @@ class Spectrum:
                     self.h_relXs_variance.SetBinContent(i + 1, num_rel)
                     self.h_absXs_variance.SetBinContent(i + 1, num_abs)
 
+    def GetTheoryAbsoluteDifferentialCrossSection(self):
+        """
+        Get a clone of Monte Carlo absolute differential cross section
+
+        Returns:
+            h_theory: Cloned histogram representing the absolute differential cross section.
+        """
+        h_theory = self.h_generated.Clone("TheoryXs_abs")
+        divide_by_bin_width(h_theory)
+        h_theory.Scale(1.0 / self.lumi)
+        h_theory.SetStats(0)
+
+        return h_theory
+
+    def GetTheoryRelativeDifferentialCrossSection(self):
+        """
+        Get a clone of Monte Carlo normalized differential cross section
+
+        Returns:
+            h_theory: Cloned histogram representing the normalized differential cross section.
+        """
+        h_theory = self.h_generated.Clone("TheoryXs_rel")
+        h_theory.Scale(1.0 / h_theory.Integral())
+        divide_by_bin_width(h_theory)
+        h_theory.SetStats(0)
+
+        return h_theory
+
     def save(self):
-        pass
+        """
+        Save output into a root file for future analyses.
+        """
+
+        # Saving covariances and correlations
+        self.m_output.cd()
+        if self.h_absXs_covariance.Integral != 0:
+            self.h_absXs_covariance.SetDirectory(self.m_output)
+            self.h_relXs_covariance.SetDirectory(self.m_output)
+            self.h_absXs_variance.SetDirectory(self.m_output)
+            self.h_relXs_variance.SetDirectory(self.m_output)
+            self.h_absXs_correlation.SetDirectory(self.m_output)
+            self.h_relXs_correlation.SetDirectory(self.m_output)
+            self.h_rel_pull_fit_error.SetDirectory(self.m_output)
+            self.h_rel_pull_fit_mean.SetDirectory(self.m_output)
+            self.h_abs_pull_fit_error.SetDirectory(self.m_output)
+            self.h_abs_pull_fit_mean.SetDirectory(self.m_output)
+
+        # Saving theory cross-sections
+        h_theory_abs = self.GetTheoryAbsoluteDifferentialCrossSection()
+        h_theory_abs.SetDirectory(self.m_output)
+        h_theory_rel = self.GetTheoryRelativeDifferentialCrossSection()
+        h_theory_rel.SetDirectory(self.m_output)
+
+        self.m_output.Write()
