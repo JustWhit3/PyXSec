@@ -54,8 +54,6 @@ class Unfolder:
         elif self.method == "Bayes":
             self.m_unfolder = ROOT.RooUnfoldBayes()
             self.m_unfolder.SetSmoothing(0)
-            if self.parameter < 0:  # TODO: Maybe this can be removed
-                self.parameter = 3
         elif self.method == "BinByBin":
             self.m_unfolder == ROOT.RooUnfoldBinByBin()
         self.m_unfolder.SetNToys(self.nToys)

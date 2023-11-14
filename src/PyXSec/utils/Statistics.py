@@ -9,30 +9,18 @@
 import ROOT
 
 
-def quick_clone(obj, type):
-    """
-    Clone the object if it is not None, otherwise return None.
-
-    Parameters:
-        obj (object): The object to clone.
-        type (type): The type of object to return.
-
-    Returns:
-        object: The cloned object or None if obj is None.
-    """
-
-    return obj if obj is None else type(obj.Clone())
-
-
 def transpose_matrix(h2):
     """
     Transpose a matrix represented as a ROOT.TH2.
 
-    Parameters:
+    Args:
         h2 (ROOT.TH2): The bidimensional histogram to transpose.
     """
 
-    hTemp = quick_clone(h2, ROOT.TH2)
+    if h2 is None:
+        hTemp = h2.Clone()
+    else:
+        hTemp = ROOT.TH2(h2.Clone())
     hTemp.SetDirectory(0)
     h2.GetXaxis().SetTitle(h2.GetYaxis().GetTitle())
     h2.GetYaxis().SetTitle(h2.GetXaxis().GetTitle())
@@ -48,19 +36,16 @@ def divide_by_bin_width(histo):
     """
 
     if isinstance(histo, ROOT.TH1):
-        nbins = histo.GetNbinsX()
-        for i in range(1, nbins + 1):
+        for i in range(1, histo.GetNbinsX() + 1):
             width = histo.GetBinWidth(i)
             content = histo.GetBinContent(i)
             error = histo.GetBinError(i)
             histo.SetBinContent(i, content / width)
             histo.SetBinError(i, error / width)
     elif isinstance(histo, ROOT.TH2):
-        nbinsX = histo.GetNbinsX()
-        nbinsY = histo.GetNbinsY()
-        for i in range(1, nbinsX + 1):
+        for i in range(1, histo.GetNbinsX() + 1):
             widthX = histo.GetXaxis().GetBinWidth(i)
-            for j in range(1, nbinsY + 1):
+            for j in range(1, histo.GetNbinsY() + 1):
                 widthY = histo.GetYaxis().GetBinWidth(j)
                 width = widthX * widthY
                 content = histo.GetBinContent(i, j)

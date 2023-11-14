@@ -126,10 +126,11 @@ class Spectrum:
         self.m_sx_rel = []
 
         # Prepare inputs
-        self._configure()
-        self._load_histograms()
-        self._initialize()
+        self._configure(self)
+        self._load_histograms(self)
+        self._initialize(self)
 
+    @staticmethod
     def _configure(self):
         """
         Parse all the information from input configuration file.
@@ -204,6 +205,7 @@ class Spectrum:
             )
         )
 
+    @staticmethod
     def _load_histograms(self):
         """
         Load histograms from input data read with _configure() method.
@@ -236,7 +238,9 @@ class Spectrum:
 
         # Load signal-reco histogram
         log.info(
-            "Loading signal-reco histogram file from: {}".format(self.input_sig_path)
+            "Loading signal-reco histogram file from: \x1b[38;5;171m{}\x1b[0m".format(
+                self.input_sig_path
+            )
         )
         f_temp = ROOT.TFile.Open(self.input_sig_path)
         f_temp.cd()
@@ -249,20 +253,22 @@ class Spectrum:
             integral = h_temp.IntegralAndError(1, h_temp.GetNbinsX(), error)
             self.h_signal_reco.SetBinContent(1, integral)
             self.h_signal_reco.SetBinError(1, error)
-        self.h_signal_reco.ClearUnderflowAndOverflow()  # TODO: remove this
+        self.h_signal_reco.ClearUnderflowAndOverflow()
         self.h_signal_reco.SetDirectory(0)
 
         # Load response matrix
-        log.info("Loading response matrix file from: {}".format(self.input_res_path))
+        log.info(
+            "Loading response matrix file from: \x1b[38;5;171m{}\x1b[0m".format(
+                self.input_res_path
+            )
+        )
         f_temp = ROOT.TFile.Open(self.input_res_path)
         f_temp.cd()
         h_response_temp = ROOT.gDirectory.Get(self.histo_res_path)
 
         if self.do_total_cross_section == 0:
             label = h_response_temp.GetXaxis().GetBinLabel(1)
-            if (
-                label == ""
-            ):  # this means that we are doing a 2D unfolding # TODO: remove?
+            if label == "":  # this means that we are doing a 2D unfolding
                 binningX = h_response_temp.GetXaxis().GetXbins().GetArray()
                 binningY = h_response_temp.GetYaxis().GetXbins().GetArray()
                 self.h_response = ROOT.TH2D(
@@ -300,7 +306,9 @@ class Spectrum:
         # Loading generated histogram
         if self.do_efficiency_correction == 1:
             log.info(
-                "Loading generated histogram file from: {}".format(self.input_sig_path)
+                "Loading generated histogram file from: \x1b[38;5;171m{}\x1b[0m".format(
+                    self.input_sig_path
+                )
             )
             f_temp = ROOT.TFile.Open(self.input_gen_path)
             f_temp.cd()
@@ -348,6 +356,7 @@ class Spectrum:
             self.h_background.Reset()
             self.h_background.SetDirectory(0)
 
+    @staticmethod
     def _initialize(self):
         """
         Initialize histograms loaded with _load_histograms() method and the Unfolder interface.
@@ -424,9 +433,7 @@ class Spectrum:
                     self.unfolding_parameter = 2
 
         # Initialize unfolder settings
-        staterr_arr = self.staterr.split(
-            ":"
-        )  # TODO: qui si può rimuovere un po' di roba
+        staterr_arr = self.staterr.split(":")
         if len(staterr_arr) == 1 and staterr_arr[0] == "analytical":
             self.unfolder = Unfolder(
                 self.method, "kCovToy", self.unfolding_parameter, self.nToys
@@ -440,8 +447,6 @@ class Spectrum:
                     self.m_toy_type = "Gauss"
             elif len(staterr_arr) == 2 and staterr_arr[0] == "toys":
                 self.m_toy_type = staterr_arr[1]
-            elif staterr_arr[0] != "none":
-                raise RuntimeError("Stat err parameter badly formatted!")
             log.info(
                 "Statistical uncertainty evaluated using {0} toys".format(
                     self.m_toy_type
@@ -449,67 +454,97 @@ class Spectrum:
             )
         self.is_initialized = True
 
-    def compute_differential_cross_sections(self, error="kNoError"):
+    @staticmethod
+    def _build_matrices(self):
         """
-        Compute differential cross sections measurement using input data parsed from the XML configuration file.
-
-        Args:
-            error (str, optional): the error treatment type for unfolding. Defaults to "kNoError".
+        Build covariance and correlation matrices.
+        Covariance: cov(i,j) = 1/N * sum_n (data_i - mean_i) * (data_j - mean_j)
         """
 
-        # Set dir as root
-        ROOT.gDirectory.cd()  # TODO: check this
+        # Create covariance and correlation histograms
+        self.h_absXs_covariance = self.h_response.Clone("Covariance_abs")
+        self.h_absXs_covariance.Reset()
+        self.h_relXs_covariance = self.h_absXs_covariance.Clone("Covariance_rel")
+        self.h_absXs_variance = self.h_data.Clone("Variance_abs")
+        self.h_absXs_variance.Reset()
+        self.h_relXs_variance = self.h_absXs_variance.Clone("Variance_rel")
+        self.h_absXs_correlation = self.h_absXs_covariance.Clone("Correlation_abs")
+        self.h_relXs_correlation = self.h_absXs_covariance.Clone("Correlation_rel")
 
-        # Signal truth histogram
-        self.h_signal_truth = self.h_response.ProjectionY(
-            "SignalTruth", 1, self.m_nbins
-        )
-        self.h_signal_truth.SetDirectory(self.m_output)
+        # Set directories to root
+        for histo in [
+            self.h_absXs_covariance,
+            self.h_relXs_covariance,
+            self.h_absXs_variance,
+            self.h_relXs_variance,
+            self.h_relXs_correlation,
+            self.h_absXs_correlation,
+        ]:
+            histo.SetDirectory(0)
 
-        # Evaluate the efficiency
-        self.h_efficiency = self.h_response.ProjectionY("Efficiency", 1, self.m_nbins)
-        self.h_efficiency.SetDirectory(self.m_output)
-        self.h_efficiency.Divide(self.h_generated)
+        # Inizializza le matrici
+        for i in range(self.m_nbins):
+            for j in range(i + 1):
+                num_abs, den1_abs, den2_abs = 0.0, 0.0, 0.0
+                num_rel, den1_rel, den2_rel = 0.0, 0.0, 0.0
 
-        # Evaluate the acceptance
-        self.h_acceptance = self.h_response.ProjectionX("Acceptance", 1, self.m_nbins)
-        self.h_acceptance.Divide(self.h_signal_reco)
-        self.h_acceptance.SetDirectory(self.m_output)
+                # Compute covariance with: cov(i,j) = 1/N * sum_n (data_i - mean_i) * (data_j - mean_j)
+                for itoy in range(self.nToys):
+                    num_abs += (
+                        (self.v_toys_abs[i][itoy] - self.m_sx_abs[i])
+                        * (self.v_toys_abs[j][itoy] - self.m_sx_abs[j])
+                        / self.nToys
+                    )
+                    num_rel += (
+                        (self.v_toys_rel[i][itoy] - self.m_sx_rel[i])
+                        * (self.v_toys_rel[j][itoy] - self.m_sx_rel[j])
+                        / self.nToys
+                    )
+                    den1_abs += (
+                        (self.v_toys_abs[i][itoy] - self.m_sx_abs[i])
+                        * (self.v_toys_abs[i][itoy] - self.m_sx_abs[i])
+                        / self.nToys
+                    )
+                    den2_abs += (
+                        (self.v_toys_abs[j][itoy] - self.m_sx_abs[j])
+                        * (self.v_toys_abs[j][itoy] - self.m_sx_abs[j])
+                        / self.nToys
+                    )
+                    den1_rel += (
+                        (self.v_toys_rel[i][itoy] - self.m_sx_rel[i])
+                        * (self.v_toys_rel[i][itoy] - self.m_sx_rel[i])
+                        / self.nToys
+                    )
+                    den2_rel += (
+                        (self.v_toys_rel[j][itoy] - self.m_sx_rel[j])
+                        * (self.v_toys_rel[j][itoy] - self.m_sx_rel[j])
+                        / self.nToys
+                    )
 
-        # Data - background subtraction
-        h_data_minus_background_corrected = self.h_data_minus_bkg.Clone(
-            "DataMinusBkgCorrected"
-        )
-        h_data_minus_background_corrected.SetTitle("(Data - Bkg ) x Acceptance")
-        h_data_minus_background_corrected.SetDirectory(self.m_output)
-        h_data_minus_background_corrected.Multiply(self.h_acceptance)
+                # Compute correlations
+                corr_abs = num_abs / math.sqrt(den1_abs * den2_abs)
+                self.h_absXs_covariance.SetBinContent(i + 1, j + 1, num_abs)
+                self.h_absXs_correlation.SetBinContent(i + 1, j + 1, corr_abs)
+                corr_rel = num_rel / math.sqrt(den1_rel * den2_rel)
+                self.h_relXs_covariance.SetBinContent(i + 1, j + 1, num_rel)
+                self.h_relXs_correlation.SetBinContent(i + 1, j + 1, corr_rel)
 
-        # Set-up unfolder
-        self.unfolder.set_data_histogram(h_data_minus_background_corrected)
-        self.unfolder.set_reco_histogram(self.h_signal_reco)
-        self.unfolder.set_truth_histogram(self.h_signal_truth)
-        self.unfolder.set_generated_histogram(self.h_generated)
-        self.unfolder.set_response_histogram(self.h_response)
-        self.unfolder.do_unfold()
+                if i != j:
+                    self.h_absXs_covariance.SetBinContent(j + 1, i + 1, num_abs)
+                    self.h_absXs_correlation.SetBinContent(j + 1, i + 1, corr_abs)
+                    self.h_relXs_covariance.SetBinContent(j + 1, i + 1, num_rel)
+                    self.h_relXs_correlation.SetBinContent(j + 1, i + 1, corr_rel)
+                else:
+                    self.h_relXs_variance.SetBinContent(i + 1, num_rel)
+                    self.h_absXs_variance.SetBinContent(i + 1, num_abs)
 
-        # Create absolute cross-section
-        self.h_data_unfolded = self.unfolder.h_unfolded.Clone("DataUnfolded")
-        self.h_data_unfolded.SetDirectory(self.m_output)
-        self.h_absXs = self.unfolder.h_unfolded.Clone()
-        self.h_absXs.SetName("AbsoluteDiffXs")
-        self.h_absXs.SetDirectory(self.m_output)
+    @staticmethod
+    def _run_toys_job(self):
+        """
+        Compute uncertainty using toys.
+        """
 
-        # Apply efficiency correction
-        self.h_absXs.Divide(self.h_efficiency)
-        self.m_totalXs = self.h_absXs.Integral()
-        log.info("Total cross-section (abs/eff): {}".format(self.m_totalXs))
-        self.h_relXs = self.h_absXs.Clone("RelativeDiffXs")
-        self.h_relXs.Scale(1.0 / self.m_totalXs)
-        divide_by_bin_width(self.h_relXs)
-        divide_by_bin_width(self.h_absXs)
-        self.h_absXs.Scale(1 / self.lumi)
-
-        # Uncertainty code
+        # Initial settings
         self.m_nbins = self.h_absXs.GetNbinsX()
         ROOT.gDirectory.cd()
         if self.nToys > 0:
@@ -542,10 +577,6 @@ class Spectrum:
             h_absXs_smeared = ROOT.TH1D()
 
             integratedXs_smeared = 0
-            v_branch_rel = [
-                0.0
-            ] * self.m_nbins  # TODO: this two can probably be removed
-            v_branch_abs = [0.0] * self.m_nbins
 
             # Set-up pull histograms
             ROOT.gDirectory.cd()  # TODO: check this
@@ -686,7 +717,7 @@ class Spectrum:
             h_efficiency_smeared.Divide(h_generated_smeared)
 
             # Add smearing
-            log.info("Running on {} toys...".format(self.nToys))
+            log.info("Running on \x1b[38;5;171m{}\x1b[0m toys...".format(self.nToys))
             for i in range(0, self.nToys):
                 self.unfolder.reset()
 
@@ -731,13 +762,11 @@ class Spectrum:
                 for b in range(self.m_nbins):
                     value_rel = h_relXs_smeared.GetBinContent(b + 1)
                     h_bin_toys_rel[b].Fill(value_rel)
-                    v_branch_rel[b] = value_rel
                     self.v_toys_rel[b][i] = value_rel
                     self.m_sx_rel[b] += value_rel
 
                     value_abs = h_absXs_smeared.GetBinContent(b + 1)
                     h_bin_toys_abs[b].Fill(value_abs)
-                    v_branch_abs[b] = value_abs
                     self.v_toys_abs[b][i] = value_abs
                     self.m_sx_abs[b] += value_abs
 
@@ -816,94 +845,78 @@ class Spectrum:
                 )
 
             # Build covariance and correlation matrices
-            self._build_matrices()
+            self._build_matrices(self)
             self.m_totalXs_stat_err = h_totalXs.GetRMS()
 
-    def _build_matrices(self):
+    def compute_differential_cross_sections(self, error="kNoError"):
         """
-        Build covariance and correlation matrices.
-        Covariance: cov(i,j) = 1/N * sum_n (data_i - mean_i) * (data_j - mean_j)
+        Compute differential cross sections measurement using input data parsed from the XML configuration file.
+
+        Args:
+            error (str, optional): the error treatment type for unfolding. Defaults to "kNoError".
         """
 
-        # Create covariance and correlation histograms
-        self.h_absXs_covariance = self.h_response.Clone("Covariance_abs")
-        self.h_absXs_covariance.Reset()
-        self.h_relXs_covariance = self.h_absXs_covariance.Clone("Covariance_rel")
-        self.h_absXs_variance = self.h_data.Clone("Variance_abs")
-        self.h_absXs_variance.Reset()
-        self.h_relXs_variance = self.h_absXs_variance.Clone("Variance_rel")
-        self.h_absXs_correlation = self.h_absXs_covariance.Clone("Correlation_abs")
-        self.h_relXs_correlation = self.h_absXs_covariance.Clone("Correlation_rel")
+        # Set dir as root
+        ROOT.gDirectory.cd()
 
-        # Set directories to root
-        for histo in [
-            self.h_absXs_covariance,
-            self.h_relXs_covariance,
-            self.h_absXs_variance,
-            self.h_relXs_variance,
-            self.h_relXs_correlation,
-            self.h_absXs_correlation,
-        ]:
-            histo.SetDirectory(0)
+        # Signal truth histogram
+        self.h_signal_truth = self.h_response.ProjectionY(
+            "SignalTruth", 1, self.m_nbins
+        )
+        self.h_signal_truth.SetDirectory(self.m_output)
 
-        # Inizializza le matrici
-        for i in range(self.m_nbins):
-            for j in range(i + 1):
-                num_abs, den1_abs, den2_abs = 0.0, 0.0, 0.0
-                num_rel, den1_rel, den2_rel = 0.0, 0.0, 0.0
+        # Evaluate the efficiency
+        self.h_efficiency = self.h_response.ProjectionY("Efficiency", 1, self.m_nbins)
+        self.h_efficiency.SetDirectory(self.m_output)
+        self.h_efficiency.Divide(self.h_generated)
 
-                # Compute covariance with: cov(i,j) = 1/N * sum_n (data_i - mean_i) * (data_j - mean_j)
-                # TODO: qui si può ottimizzare raggruppando le operazioni
-                for itoy in range(self.nToys):
-                    num_abs += (
-                        (self.v_toys_abs[i][itoy] - self.m_sx_abs[i])
-                        * (self.v_toys_abs[j][itoy] - self.m_sx_abs[j])
-                        / self.nToys
-                    )
-                    num_rel += (
-                        (self.v_toys_rel[i][itoy] - self.m_sx_rel[i])
-                        * (self.v_toys_rel[j][itoy] - self.m_sx_rel[j])
-                        / self.nToys
-                    )
-                    den1_abs += (
-                        (self.v_toys_abs[i][itoy] - self.m_sx_abs[i])
-                        * (self.v_toys_abs[i][itoy] - self.m_sx_abs[i])
-                        / self.nToys
-                    )
-                    den2_abs += (
-                        (self.v_toys_abs[j][itoy] - self.m_sx_abs[j])
-                        * (self.v_toys_abs[j][itoy] - self.m_sx_abs[j])
-                        / self.nToys
-                    )
-                    den1_rel += (
-                        (self.v_toys_rel[i][itoy] - self.m_sx_rel[i])
-                        * (self.v_toys_rel[i][itoy] - self.m_sx_rel[i])
-                        / self.nToys
-                    )
-                    den2_rel += (
-                        (self.v_toys_rel[j][itoy] - self.m_sx_rel[j])
-                        * (self.v_toys_rel[j][itoy] - self.m_sx_rel[j])
-                        / self.nToys
-                    )
+        # Evaluate the acceptance
+        self.h_acceptance = self.h_response.ProjectionX("Acceptance", 1, self.m_nbins)
+        self.h_acceptance.Divide(self.h_signal_reco)
+        self.h_acceptance.SetDirectory(self.m_output)
 
-                # Compute correlations
-                corr_abs = num_abs / math.sqrt(den1_abs * den2_abs)
-                self.h_absXs_covariance.SetBinContent(i + 1, j + 1, num_abs)
-                self.h_absXs_correlation.SetBinContent(i + 1, j + 1, corr_abs)
-                corr_rel = num_rel / math.sqrt(den1_rel * den2_rel)
-                self.h_relXs_covariance.SetBinContent(i + 1, j + 1, num_rel)
-                self.h_relXs_correlation.SetBinContent(i + 1, j + 1, corr_rel)
+        # Data - background subtraction
+        h_data_minus_background_corrected = self.h_data_minus_bkg.Clone(
+            "DataMinusBkgCorrected"
+        )
+        h_data_minus_background_corrected.SetTitle("(Data - Bkg ) x Acceptance")
+        h_data_minus_background_corrected.SetDirectory(self.m_output)
+        h_data_minus_background_corrected.Multiply(self.h_acceptance)
 
-                if i != j:
-                    self.h_absXs_covariance.SetBinContent(j + 1, i + 1, num_abs)
-                    self.h_absXs_correlation.SetBinContent(j + 1, i + 1, corr_abs)
-                    self.h_relXs_covariance.SetBinContent(j + 1, i + 1, num_rel)
-                    self.h_relXs_correlation.SetBinContent(j + 1, i + 1, corr_rel)
-                else:
-                    self.h_relXs_variance.SetBinContent(i + 1, num_rel)
-                    self.h_absXs_variance.SetBinContent(i + 1, num_abs)
+        # Set-up unfolder
+        self.unfolder.set_data_histogram(h_data_minus_background_corrected)
+        self.unfolder.set_reco_histogram(self.h_signal_reco)
+        self.unfolder.set_truth_histogram(self.h_signal_truth)
+        self.unfolder.set_generated_histogram(self.h_generated)
+        self.unfolder.set_response_histogram(self.h_response)
+        self.unfolder.do_unfold()
 
-    def GetTheoryAbsoluteDifferentialCrossSection(self):
+        # Create absolute cross-section
+        self.h_data_unfolded = self.unfolder.h_unfolded.Clone("DataUnfolded")
+        self.h_data_unfolded.SetDirectory(self.m_output)
+        self.h_absXs = self.unfolder.h_unfolded.Clone()
+        self.h_absXs.SetName("AbsoluteDiffXs")
+        self.h_absXs.SetDirectory(self.m_output)
+
+        # Apply efficiency correction
+        self.h_absXs.Divide(self.h_efficiency)
+        self.m_totalXs = self.h_absXs.Integral()
+        log.info(
+            "Total cross-section (abs/eff): \x1b[38;5;171m{}\x1b[0m".format(
+                self.m_totalXs
+            )
+        )
+        self.h_relXs = self.h_absXs.Clone("RelativeDiffXs")
+        self.h_relXs.Scale(1.0 / self.m_totalXs)
+        divide_by_bin_width(self.h_relXs)
+        divide_by_bin_width(self.h_absXs)
+        self.h_absXs.Scale(1 / self.lumi)
+
+        # Uncertainty computation with toys
+        self._run_toys_job(self)
+
+    @staticmethod
+    def get_theory_absolute_differential_xsec(self):
         """
         Get a clone of Monte Carlo absolute differential cross section
 
@@ -917,7 +930,8 @@ class Spectrum:
 
         return h_theory
 
-    def GetTheoryRelativeDifferentialCrossSection(self):
+    @staticmethod
+    def get_theory_relative_differential_xsec(self):
         """
         Get a clone of Monte Carlo normalized differential cross section
 
@@ -951,9 +965,9 @@ class Spectrum:
             self.h_abs_pull_fit_mean.SetDirectory(self.m_output)
 
         # Saving theory cross-sections
-        h_theory_abs = self.GetTheoryAbsoluteDifferentialCrossSection()
+        h_theory_abs = self.get_theory_absolute_differential_xsec(self)
         h_theory_abs.SetDirectory(self.m_output)
-        h_theory_rel = self.GetTheoryRelativeDifferentialCrossSection()
+        h_theory_rel = self.get_theory_relative_differential_xsec(self)
         h_theory_rel.SetDirectory(self.m_output)
 
         self.m_output.Write()
