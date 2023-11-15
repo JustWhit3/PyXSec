@@ -4,3 +4,4 @@ HEP_deps
 private
 **/__pycache__
 .vscode
+**/.hypothesis

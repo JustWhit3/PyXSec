@@ -1,0 +1,12 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it as below."
+authors:
+  - family-names: "Bianco"
+    given-names: "Gianluca"
+  - family-names: "Gasperini"
+    given-names: "Simone"
+title: "PyXSec"
+version: 0.0.1
+doi: https://zenodo.org/doi/10.5281/zenodo.10131534
+date-released: 2023-11-15
+url: "https://github.com/JustWhit3/PyXSec"

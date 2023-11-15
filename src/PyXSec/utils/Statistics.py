@@ -17,14 +17,18 @@ def transpose_matrix(h2):
         h2 (ROOT.TH2): The bidimensional histogram to transpose.
     """
 
-    if h2 is None:
-        hTemp = h2.Clone()
-    else:
-        hTemp = ROOT.TH2(h2.Clone())
+    hTemp = h2.Clone()
     hTemp.SetDirectory(0)
-    h2.GetXaxis().SetTitle(h2.GetYaxis().GetTitle())
-    h2.GetYaxis().SetTitle(h2.GetXaxis().GetTitle())
-    h2.Transpose(hTemp)
+
+    for i in range(1, h2.GetNbinsX() + 1):
+        for j in range(1, h2.GetNbinsY() + 1):
+            hTemp.SetBinContent(j, i, h2.GetBinContent(i, j))
+
+    hTemp.GetXaxis().SetTitle(h2.GetYaxis().GetTitle())
+    hTemp.GetYaxis().SetTitle(h2.GetXaxis().GetTitle())
+
+    h2.Reset()
+    h2.Add(hTemp)
 
 
 def divide_by_bin_width(histo):
