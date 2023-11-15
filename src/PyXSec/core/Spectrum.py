@@ -9,6 +9,7 @@
 import xml.etree.ElementTree as et
 import sys
 import math
+import tqdm
 
 # Data science modules
 import ROOT
@@ -60,7 +61,6 @@ class Spectrum:
 
         # Bool variables
         self.ignore_background = False
-        self.use_default_regularization = False
         self.transpose_response = False
         self.is_initialized = False
 
@@ -81,7 +81,7 @@ class Spectrum:
 
         # Numeric variables
         self.reco_scale_factor = 1
-        self.unfolding_parameter = -1
+        self.unfolding_parameter = 0
         self.br = 1.0
         self.do_efficiency_correction = 1
         self.do_total_cross_section = 0
@@ -111,10 +111,10 @@ class Spectrum:
         self.h_relXs_correlation = ROOT.TH1D()
         self.h_absXs_variance = ROOT.TH1D()
         self.h_relXs_variance = ROOT.TH1D()
-        self.h_abs_pull_fit_error = ROOT.TH1D()
-        self.h_rel_pull_fit_error = ROOT.TH1D()
-        self.h_abs_pull_fit_mean = ROOT.TH1D()
-        self.h_rel_pull_fit_mean = ROOT.TH1D()
+        # self.h_abs_pull_fit_error = ROOT.TH1D()
+        # self.h_rel_pull_fit_error = ROOT.TH1D()
+        # self.h_abs_pull_fit_mean = ROOT.TH1D()
+        # self.h_rel_pull_fit_mean = ROOT.TH1D()
 
         # Other
         self.m_output = None
@@ -174,8 +174,10 @@ class Spectrum:
         self.unfolding_parameter = try_parse_int(
             self.unfolding_parameter, root, "unfolding", "regularization"
         )
-        if self.unfolding_parameter < 0:
-            self.use_default_regularization = True
+        if self.method == "SimNeal":
+            self.unfolding_parameter = try_parse_float(
+                self.unfolding_parameter, root, "unfolding", "regularization"
+            )
         self.nToys = try_parse_int(self.nToys, root, "unfolding", "ntoys")
         self.staterr = try_parse_str(self.staterr, root, "unfolding", "statErr")
 
@@ -423,15 +425,6 @@ class Spectrum:
         if not self.ignore_background:
             self.h_data_minus_bkg.Add(self.h_background, -1)
 
-        # Initialize the unfolding parameter
-        if self.use_default_regularization == True:
-            if self.method == "Bayes":
-                self.unfolding_parameter = 4
-            if self.method == "SVD":
-                self.unfolding_parameter = self.h_data.GetNbinsX() // 2
-                if self.unfolding_parameter < 2:
-                    self.unfolding_parameter = 2
-
         # Initialize unfolder settings
         staterr_arr = self.staterr.split(":")
         if len(staterr_arr) == 1 and staterr_arr[0] == "analytical":
@@ -554,12 +547,12 @@ class Spectrum:
             h_bin_toys_unfold = [ROOT.TH1D() for _ in range(self.m_nbins)]
             h_bin_toys_rel = [ROOT.TH1D() for _ in range(self.m_nbins)]
             h_bin_toys_abs = [ROOT.TH1D() for _ in range(self.m_nbins)]
-            h_bin_toys_rel_pull = [ROOT.TH1D() for _ in range(self.m_nbins)]
-            h_bin_toys_abs_pull = [ROOT.TH1D() for _ in range(self.m_nbins)]
+            # h_bin_toys_rel_pull = [ROOT.TH1D() for _ in range(self.m_nbins)]
+            # h_bin_toys_abs_pull = [ROOT.TH1D() for _ in range(self.m_nbins)]
             func_abs = [ROOT.TF1() for _ in range(self.m_nbins)]
             func_rel = [ROOT.TF1() for _ in range(self.m_nbins)]
-            func_abs_pull = [ROOT.TF1() for _ in range(self.m_nbins)]
-            func_rel_pull = [ROOT.TF1() for _ in range(self.m_nbins)]
+            # func_abs_pull = [ROOT.TF1() for _ in range(self.m_nbins)]
+            # func_rel_pull = [ROOT.TF1() for _ in range(self.m_nbins)]
 
             h_totalXs = ROOT.TH1D(
                 "totalXs", "totalXs", 100, 0.5 * self.m_totalXs, 1.5 * self.m_totalXs
@@ -582,14 +575,14 @@ class Spectrum:
             ROOT.gDirectory.cd()  # TODO: check this
             h_unfolded = self.unfolder.h_unfolded.Clone()
             h_unfolded.SetDirectory(0)
-            self.h_abs_pull_fit_mean = h_unfolded.Clone("PullTestMean_abs")
-            self.h_abs_pull_fit_mean.Reset()
-            self.h_abs_pull_fit_error = h_unfolded.Clone("PullTestError_abs")
-            self.h_abs_pull_fit_error.Reset()
-            self.h_rel_pull_fit_mean = h_unfolded.Clone("PullTestMean_rel")
-            self.h_rel_pull_fit_mean.Reset()
-            self.h_rel_pull_fit_error = h_unfolded.Clone("PullTestError_rel")
-            self.h_rel_pull_fit_error.Reset()
+            # self.h_abs_pull_fit_mean = h_unfolded.Clone("PullTestMean_abs")
+            # self.h_abs_pull_fit_mean.Reset()
+            # self.h_abs_pull_fit_error = h_unfolded.Clone("PullTestError_abs")
+            # self.h_abs_pull_fit_error.Reset()
+            # self.h_rel_pull_fit_mean = h_unfolded.Clone("PullTestMean_rel")
+            # self.h_rel_pull_fit_mean.Reset()
+            # self.h_rel_pull_fit_error = h_unfolded.Clone("PullTestError_rel")
+            # self.h_rel_pull_fit_error.Reset()
 
             # Allocate the histograms
             for i in range(0, self.m_nbins):
@@ -608,18 +601,18 @@ class Spectrum:
                     (1 + 1.5 * rel_err) * mean,
                 )
                 h_bin_toys_rel[i].SetDirectory(self.m_output)
-                h_bin_toys_rel_pull[i] = ROOT.TH1D(
-                    f"Rel_toyPull_bin_{i}", f"Rel_toyPull_bin_{i}", 100, -3, 3
-                )
-                h_bin_toys_rel_pull[i].SetDirectory(self.m_output)
+                # h_bin_toys_rel_pull[i] = ROOT.TH1D(
+                #     f"Rel_toyPull_bin_{i}", f"Rel_toyPull_bin_{i}", 100, -3, 3
+                # )
+                # h_bin_toys_rel_pull[i].SetDirectory(self.m_output)
                 func_rel[i] = ROOT.TF1(
                     f"Gaus_rel_{i}",
                     "gaus(0)",
                     (1 - 1.5 * rel_err) * mean,
                     (1 + 1.5 * rel_err) * mean,
                 )
-                func_rel_pull[i] = ROOT.TF1(f"GausPull_rel_{i}", "gaus(0)", -3, 3)
-                func_rel_pull[i].SetParameter(2, 1)
+                # func_rel_pull[i] = ROOT.TF1(f"GausPull_rel_{i}", "gaus(0)", -3, 3)
+                # func_rel_pull[i].SetParameter(2, 1)
 
                 # Absolute toy bin
                 mean = self.h_absXs.GetBinContent(i + 1)
@@ -642,10 +635,10 @@ class Spectrum:
                 )
                 h_bin_toys_data[i].SetDirectory(self.m_output)
 
-                h_bin_toys_abs_pull[i] = ROOT.TH1D(
-                    f"Abs_toyPull_bin_{i}", f"Abs_toyPull_bin_{i}", 100, -3, 3
-                )
-                h_bin_toys_abs_pull[i].SetDirectory(self.m_output)
+                # h_bin_toys_abs_pull[i] = ROOT.TH1D(
+                #     f"Abs_toyPull_bin_{i}", f"Abs_toyPull_bin_{i}", 100, -3, 3
+                # )
+                # h_bin_toys_abs_pull[i].SetDirectory(self.m_output)
 
                 func_abs[i] = ROOT.TF1(
                     f"Gaus_abs_{i}",
@@ -653,8 +646,8 @@ class Spectrum:
                     (1 - 1.5 * rel_err) * mean,
                     (1 + 1.5 * rel_err) * mean,
                 )
-                func_abs_pull[i] = ROOT.TF1(f"GausPull_abs_{i}", "gaus(0)", -3, 3)
-                func_abs_pull[i].SetParameter(2, 1)
+                # func_abs_pull[i] = ROOT.TF1(f"GausPull_abs_{i}", "gaus(0)", -3, 3)
+                # func_abs_pull[i].SetParameter(2, 1)
 
                 # Unfolded toy bin
                 mean = h_unfolded.GetBinContent(i + 1)
@@ -718,8 +711,9 @@ class Spectrum:
 
             # Add smearing
             log.info("Running on \x1b[38;5;171m{}\x1b[0m toys...".format(self.nToys))
-            for i in range(0, self.nToys):
-                self.unfolder.reset()
+            for i in tqdm.trange(0, self.nToys, ncols=100):
+                if self.method != "SimNeal":
+                    self.unfolder.reset()
 
                 # Data smearing
                 h_data_smeared = self.h_data.Clone()
@@ -796,15 +790,15 @@ class Spectrum:
                         m_sxy_rel[j][b] = m_sxy_rel[b][j]
                         m_sxy_abs[j][b] = m_sxy_abs[b][j]
 
-                for toy in range(len(self.v_toys_abs[b])):
-                    h_bin_toys_rel_pull[b].Fill(
-                        (self.v_toys_rel[b][toy] - self.h_relXs.GetBinContent(b + 1))
-                        / h_bin_toys_rel[b].GetRMS()
-                    )
-                    h_bin_toys_abs_pull[b].Fill(
-                        (self.v_toys_abs[b][toy] - self.h_absXs.GetBinContent(b + 1))
-                        / h_bin_toys_abs[b].GetRMS()
-                    )
+                # for toy in range(len(self.v_toys_abs[b])):
+                #     h_bin_toys_rel_pull[b].Fill(
+                #         (self.v_toys_rel[b][toy] - self.h_relXs.GetBinContent(b + 1))
+                #         / h_bin_toys_rel[b].GetRMS()
+                #     )
+                #     h_bin_toys_abs_pull[b].Fill(
+                #         (self.v_toys_abs[b][toy] - self.h_absXs.GetBinContent(b + 1))
+                #         / h_bin_toys_abs[b].GetRMS()
+                #     )
 
                 RMS_rel = h_bin_toys_rel[b].GetRMS()
                 self.h_relXs.SetBinError(b + 1, RMS_rel)
@@ -813,36 +807,36 @@ class Spectrum:
                 self.h_absXs.SetBinError(b + 1, RMS_abs)
 
                 h_bin_toys_rel[b].Fit(func_rel[b].GetName(), "Q")
-                h_bin_toys_rel_pull[b].Fit(func_rel_pull[b].GetName(), "Q")
+                # h_bin_toys_rel_pull[b].Fit(func_rel_pull[b].GetName(), "Q")
 
-                self.h_rel_pull_fit_mean.SetBinContent(
-                    b + 1, func_rel_pull[b].GetParameter(1)
-                )
-                self.h_rel_pull_fit_mean.SetBinError(
-                    b + 1, func_rel_pull[b].GetParError(1)
-                )
-                self.h_rel_pull_fit_error.SetBinContent(
-                    b + 1, func_rel_pull[b].GetParameter(2)
-                )
-                self.h_rel_pull_fit_error.SetBinError(
-                    b + 1, func_rel_pull[b].GetParError(2)
-                )
+                # self.h_rel_pull_fit_mean.SetBinContent(
+                #     b + 1, func_rel_pull[b].GetParameter(1)
+                # )
+                # self.h_rel_pull_fit_mean.SetBinError(
+                #     b + 1, func_rel_pull[b].GetParError(1)
+                # )
+                # self.h_rel_pull_fit_error.SetBinContent(
+                #     b + 1, func_rel_pull[b].GetParameter(2)
+                # )
+                # self.h_rel_pull_fit_error.SetBinError(
+                #     b + 1, func_rel_pull[b].GetParError(2)
+                # )
 
                 h_bin_toys_abs[b].Fit(func_abs[b].GetName(), "Q")
-                h_bin_toys_abs_pull[b].Fit(func_abs_pull[b].GetName(), "Q")
+                # h_bin_toys_abs_pull[b].Fit(func_abs_pull[b].GetName(), "Q")
 
-                self.h_abs_pull_fit_mean.SetBinContent(
-                    b + 1, func_abs_pull[b].GetParameter(1)
-                )
-                self.h_abs_pull_fit_mean.SetBinError(
-                    b + 1, func_abs_pull[b].GetParError(1)
-                )
-                self.h_abs_pull_fit_error.SetBinContent(
-                    b + 1, func_abs_pull[b].GetParameter(2)
-                )
-                self.h_abs_pull_fit_error.SetBinError(
-                    b + 1, func_abs_pull[b].GetParError(2)
-                )
+                # self.h_abs_pull_fit_mean.SetBinContent(
+                #     b + 1, func_abs_pull[b].GetParameter(1)
+                # )
+                # self.h_abs_pull_fit_mean.SetBinError(
+                #     b + 1, func_abs_pull[b].GetParError(1)
+                # )
+                # self.h_abs_pull_fit_error.SetBinContent(
+                #     b + 1, func_abs_pull[b].GetParameter(2)
+                # )
+                # self.h_abs_pull_fit_error.SetBinError(
+                #     b + 1, func_abs_pull[b].GetParError(2)
+                # )
 
             # Build covariance and correlation matrices
             self._build_matrices(self)
@@ -959,10 +953,10 @@ class Spectrum:
             self.h_relXs_variance.SetDirectory(self.m_output)
             self.h_absXs_correlation.SetDirectory(self.m_output)
             self.h_relXs_correlation.SetDirectory(self.m_output)
-            self.h_rel_pull_fit_error.SetDirectory(self.m_output)
-            self.h_rel_pull_fit_mean.SetDirectory(self.m_output)
-            self.h_abs_pull_fit_error.SetDirectory(self.m_output)
-            self.h_abs_pull_fit_mean.SetDirectory(self.m_output)
+            # self.h_rel_pull_fit_error.SetDirectory(self.m_output)
+            # self.h_rel_pull_fit_mean.SetDirectory(self.m_output)
+            # self.h_abs_pull_fit_error.SetDirectory(self.m_output)
+            # self.h_abs_pull_fit_mean.SetDirectory(self.m_output)
 
         # Saving theory cross-sections
         h_theory_abs = self.get_theory_absolute_differential_xsec(self)

@@ -7,6 +7,7 @@
 
 # Data science modules
 import ROOT
+from array import array
 
 
 def transpose_matrix(h2):
@@ -76,3 +77,29 @@ def run_toy(histo, toy_type):
         else:
             smear = ROOT.gRandom.Gaus(mean, histo.GetBinError(i))
         histo.SetBinContent(i, smear)
+
+
+def array_to_TH1D(bin_contents, binning, name="histo"):
+    """
+    Converts NumPy arrays representing bin contents of a ROOT.TH1F histogram.
+
+    Args:
+        bin_contents (numpy.array): The NumPy array representing bin contents.
+        binning (list): The binning of the histogram.
+        name (str): Name of the ROOT.TH1F histogram. Default is "hist".
+
+    Returns:
+        ROOT.TH1D: The converted ROOT.TH1F histogram.
+    """
+
+    # Fill histogram with bin contents
+    bins = len(binning) - 1
+    histo = ROOT.TH1D(name, ";X;Entries", bins, array("d", binning))
+    for i in range(bins):
+        histo.SetBinContent(i + 1, bin_contents[i])
+        histo.SetBinError(i + 1, bin_contents[i] ** 0.5)
+
+    return histo
+
+
+# TODO: cambia nome histo e testa

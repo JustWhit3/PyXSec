@@ -8,8 +8,11 @@
 # Data science modules
 import ROOT
 
+from QUnfold import QUnfoldQUBO
+from QUnfold.utility import TMatrix_to_array, TH1_to_array
+
 # Personal modules
-from utils import transpose_matrix
+from utils import transpose_matrix, array_to_TH1D
 
 
 class Unfolder:
@@ -45,20 +48,6 @@ class Unfolder:
         self.m_unfolder = None
         self.transpose_response = False
         self.m_response = ROOT.RooUnfoldResponse()
-
-        # Choose unfolding method
-        if self.method == "Inversion":
-            self.m_unfolder = ROOT.RooUnfoldInvert()
-        elif self.method == "SVD":
-            self.m_unfolder = ROOT.RooUnfoldSVD()
-        elif self.method == "Bayes":
-            self.m_unfolder = ROOT.RooUnfoldBayes()
-            self.m_unfolder.SetSmoothing(0)
-        elif self.method == "BinByBin":
-            self.m_unfolder == ROOT.RooUnfoldBinByBin()
-        self.m_unfolder.SetNToys(self.nToys)
-        self.m_unfolder.SetRegParm(self.parameter)
-        self.m_unfolder.SetVerbose(0)
 
     def set_data_histogram(self, histo):
         """
@@ -147,12 +136,46 @@ class Unfolder:
                 name,
             )
         self.m_response.UseOverflow(False)
-        self.m_unfolder.SetResponse(self.m_response)
-        self.m_unfolder.SetMeasured(self.h_data)
+
+        # Choose unfolding method
+        if self.method == "Inversion":
+            self.m_unfolder = ROOT.RooUnfoldInvert()
+        elif self.method == "SVD":
+            self.m_unfolder = ROOT.RooUnfoldSVD()
+        elif self.method == "Bayes":
+            self.m_unfolder = ROOT.RooUnfoldBayes()
+            self.m_unfolder.SetSmoothing(0)
+        elif self.method == "BinByBin":
+            self.m_unfolder = ROOT.RooUnfoldBinByBin()
+        elif self.method == "SimNeal":
+            self.m_unfolder = QUnfoldQUBO(
+                response=TMatrix_to_array(self.m_response.Mresponse(norm=True)),
+                meas=TH1_to_array(self.h_data),
+                lam=self.parameter,
+            )
+
+        if self.method != "SimNeal":
+            self.m_unfolder.SetNToys(self.nToys)
+            self.m_unfolder.SetRegParm(self.parameter)
+            self.m_unfolder.SetVerbose(0)
+            self.m_unfolder.SetResponse(self.m_response)
+            self.m_unfolder.SetMeasured(self.h_data)
 
         # Unfolded distribution settings
         if self.error == "kNoError":
-            self.h_unfolded = self.m_unfolder.Hunfold(self.m_unfolder.kNoError)
+            if self.method == "SimNeal":
+                h_unfolded_array = self.m_unfolder.solve_simulated_annealing(
+                    num_reads=100
+                )
+                binning = [
+                    self.h_data.GetXaxis().GetBinLowEdge(bin)
+                    for bin in range(1, self.h_data.GetNbinsX() + 2)
+                ]
+                self.h_unfolded = array_to_TH1D(
+                    bin_contents=h_unfolded_array, binning=binning
+                )
+            else:
+                self.h_unfolded = self.m_unfolder.Hunfold(self.m_unfolder.kNoError)
         elif self.error == "kCovToy":
             self.h_unfolded = self.m_unfolder.Hunfold(self.m_unfolder.kCovToys)
         self.h_unfolded.SetName("unf_Unfolded")
