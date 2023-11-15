@@ -31,6 +31,7 @@ def test_transpose_matrix(square_size):
     for i in range(1, square_size + 1):
         for j in range(1, square_size + 1):
             h2.SetBinContent(i, j, i + j)
+            h2.SetBinError(i, j, i + j / 2)
 
     # Transpose the matrix
     transpose_matrix(h2)
@@ -39,6 +40,7 @@ def test_transpose_matrix(square_size):
     for i in range(1, h2.GetNbinsX() + 1):
         for j in range(1, h2.GetNbinsY() + 1):
             assert h2.GetBinContent(j, i) == i + j
+            assert h2.GetBinError(j, i) == i + j / 2
 
 
 @given(st.integers(min_value=1, max_value=10), st.floats(min_value=0.1, max_value=1.0))
