@@ -23,6 +23,7 @@ def transpose_matrix(h2):
     for i in range(1, h2.GetNbinsX() + 1):
         for j in range(1, h2.GetNbinsY() + 1):
             hTemp.SetBinContent(j, i, h2.GetBinContent(i, j))
+            hTemp.SetBinError(j, i, h2.GetBinError(i, j))
 
     hTemp.GetXaxis().SetTitle(h2.GetYaxis().GetTitle())
     hTemp.GetYaxis().SetTitle(h2.GetXaxis().GetTitle())
