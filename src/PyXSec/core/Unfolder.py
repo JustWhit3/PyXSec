@@ -172,7 +172,11 @@ class Unfolder:
                     for bin in range(1, self.h_data.GetNbinsX() + 2)
                 ]
                 self.h_unfolded = array_to_TH1D(
-                    bin_contents=h_unfolded_array, binning=binning
+                    bin_contents=h_unfolded_array,
+                    binning=binning,
+                    name=self.h_response.GetTitle(),
+                    x_axis_name=self.h_data.GetXaxis().GetTitle(),
+                    y_axis_name="",
                 )
             else:
                 self.h_unfolded = self.m_unfolder.Hunfold(self.m_unfolder.kNoError)

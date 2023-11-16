@@ -79,27 +79,28 @@ def run_toy(histo, toy_type):
         histo.SetBinContent(i, smear)
 
 
-def array_to_TH1D(bin_contents, binning, name="histo"):
+def array_to_TH1D(bin_contents, binning, name, x_axis_name, y_axis_name):
     """
-    Converts NumPy arrays representing bin contents of a ROOT.TH1F histogram.
+    Converts NumPy arrays representing bin contents and bin errors of a ROOT.TH1F histogram.
+    Bin errors are set to square-root of the bin content. This is not important since later they are overwritten with toys.
 
     Args:
         bin_contents (numpy.array): The NumPy array representing bin contents.
         binning (list): The binning of the histogram.
-        name (str): Name of the ROOT.TH1F histogram. Default is "hist".
+        name (str): Name of the ROOT.TH1D histogram. Default is "hist".
+        x_axis_name (str): Title for the x-axis.
+        y_axis_name (str, optional): Title for the y-axis.
 
     Returns:
         ROOT.TH1D: The converted ROOT.TH1F histogram.
     """
 
-    # Fill histogram with bin contents
     bins = len(binning) - 1
-    histo = ROOT.TH1D(name, ";X;Entries", bins, array("d", binning))
+    histo = ROOT.TH1D(name, name, bins, array("d", binning))
+    histo.GetXaxis().SetTitle(x_axis_name)
+    histo.GetYaxis().SetTitle(y_axis_name)
     for i in range(bins):
         histo.SetBinContent(i + 1, bin_contents[i])
         histo.SetBinError(i + 1, bin_contents[i] ** 0.5)
 
     return histo
-
-
-# TODO: cambia nome histo e testa

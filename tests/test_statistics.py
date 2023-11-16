@@ -12,7 +12,7 @@ from hypothesis import given, strategies as st
 import ROOT
 
 # Import the functions to be tested
-from utils import transpose_matrix, divide_by_bin_width
+from utils import transpose_matrix, divide_by_bin_width, array_to_TH1D
 
 
 @given(st.integers(min_value=1, max_value=10))
@@ -88,3 +88,26 @@ def test_divide_by_bin_width(num_bins, error_value):
             width = widthX * widthY
             assert histo_th2.GetBinContent(i, j) == ((i + j) * 10.0) / width
             assert histo_th2.GetBinError(i, j) == error_value / width
+
+
+def test_array_to_TH1D():
+    """
+    Test the array_to_TH1D function with specific input data.
+    """
+
+    bin_contents = [1.0, 2.0, 3.0, 4.0]
+    binning = [0.0, 1.0, 2.0, 3.0, 4.0]
+    name = "test_hist"
+    x_axis_name = "x_axis"
+    y_axis_name = "y_axis"
+
+    histogram = array_to_TH1D(bin_contents, binning, name, x_axis_name, y_axis_name)
+
+    assert isinstance(histogram, ROOT.TH1D)
+    assert histogram.GetName() == name
+    assert histogram.GetXaxis().GetTitle() == x_axis_name
+    assert histogram.GetYaxis().GetTitle() == y_axis_name
+
+    for i in range(len(bin_contents)):
+        assert histogram.GetBinContent(i + 1) == bin_contents[i]
+        assert histogram.GetBinError(i + 1) == bin_contents[i] ** 0.5
