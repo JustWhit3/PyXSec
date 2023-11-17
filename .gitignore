@@ -5,4 +5,5 @@ private
 **/__pycache__
 .vscode
 **/.hypothesis
-**/delphes.root
+**/delphes
+**/*.root

@@ -24,7 +24,7 @@ if __name__ == "__main__":
         "-c",
         "--config",
         default="",
-        help="THe configuration file containing all the information about input data.",
+        help="The configuration file containing all the information about input data.",
     )
     parser.add_argument(
         "-o",
