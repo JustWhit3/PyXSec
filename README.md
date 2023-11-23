@@ -76,7 +76,7 @@ A quick example about how to use the framework:
 python PyXSec.py --config="config.xml" --output="output.root"
 ```
 
-:Warning: This usage is still not supported, but this should be the final form of the framework signature.
+:warning: This usage is still not supported, but this should be the final form of the framework signature.
 
 ## Credits
 
