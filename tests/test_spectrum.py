@@ -48,7 +48,6 @@ def test_histo_comparison():
     }
 
     for hist_output, hist_correct in data.items():
-
         # Check total bin number
         assert hist_output.GetNbinsX() == hist_correct.GetNbinsX()
 
