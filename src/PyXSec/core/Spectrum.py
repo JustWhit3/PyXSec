@@ -450,7 +450,7 @@ class Spectrum:
         ]:
             histo.SetDirectory(0)
 
-        # Inizializza le matrici
+        # Initialize matrices
         for i in range(self.m_nbins):
             for j in range(i + 1):
                 num_abs, den1_abs, den2_abs = 0.0, 0.0, 0.0
@@ -698,9 +698,6 @@ class Spectrum:
                 h_data_smeared_corrected.SetName(f"data_corrected_{i}")
 
                 # Unfolder settings
-                self.unfolder.set_reco_histogram(h_signal_reco_smeared)
-                self.unfolder.set_truth_histogram(h_signal_truth_smeared)
-                self.unfolder.set_generated_histogram(h_generated_smeared)
                 self.unfolder.set_response_histogram(h_response_smeared)
                 if self.ignore_background == False:
                     h_data_smeared_corrected.Add(h_bkg_smeared, -1)
@@ -846,9 +843,6 @@ class Spectrum:
 
         # Set-up unfolder
         self.unfolder.set_data_histogram(h_data_minus_background_corrected)
-        self.unfolder.set_reco_histogram(self.h_signal_reco)
-        self.unfolder.set_truth_histogram(self.h_signal_truth)
-        self.unfolder.set_generated_histogram(self.h_generated)
         self.unfolder.set_response_histogram(self.h_response)
         self.unfolder.do_unfold()
 

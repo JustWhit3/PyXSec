@@ -38,9 +38,6 @@ class Unfolder:
 
         # Histograms
         self.h_data = ROOT.TH1D()
-        self.h_reco = ROOT.TH1D()
-        self.h_truth = ROOT.TH1D()
-        self.h_generated = ROOT.TH1D()
         self.h_response = ROOT.TH2D()
         self.h_unfolded = ROOT.TH1D()
 
@@ -48,6 +45,19 @@ class Unfolder:
         self.m_unfolder = None
         self.transpose_response = False
         self.m_response = ROOT.RooUnfoldResponse()
+
+        # Choose unfolding method
+        if self.method == "Inversion":
+            self.m_unfolder = ROOT.RooUnfoldInvert()
+        elif self.method == "SVD":
+            self.m_unfolder = ROOT.RooUnfoldSVD()
+        elif self.method == "Bayes":
+            self.m_unfolder = ROOT.RooUnfoldBayes()
+            self.m_unfolder.SetSmoothing(0)
+        elif self.method == "BinByBin":
+            self.m_unfolder = ROOT.RooUnfoldBinByBin()
+        elif self.method == "SimNeal":
+            self.m_unfolder = QUnfoldQUBO()
 
     def set_data_histogram(self, histo):
         """
@@ -60,45 +70,6 @@ class Unfolder:
         histo.Copy(self.h_data)
         self.h_data.SetName("unf_Data")
         self.h_data.SetDirectory(0)
-
-    def set_reco_histogram(self, histo):
-        """
-        Set the reconstructed signal histogram.
-
-        Args:
-            histo (TH1D or None): The input histogram. If None, the internal histogram remains unchanged.
-
-        """
-
-        if histo is not None:
-            histo.Copy(self.h_reco)
-        self.h_reco.SetName("unf_SignalReco")
-        self.h_reco.SetDirectory(0)
-
-    def set_truth_histogram(self, histo):
-        """
-        Set the true signal histogram.
-
-        Args:
-            histo (TH1D or None): The input histogram. If None, the internal histogram remains unchanged.
-        """
-
-        if histo is not None:
-            histo.Copy(self.h_truth)
-        self.h_truth.SetName("unf_SignalTruth")
-        self.h_truth.SetDirectory(0)
-
-    def set_generated_histogram(self, histo):
-        """
-        Set the generated histogram.
-
-        Args:
-            histo (TH1D): The input histogram.
-        """
-
-        histo.Copy(self.h_generated)
-        self.h_generated.SetName("unf_Generated")
-        self.h_generated.SetDirectory(0)
 
     def set_response_histogram(self, histo, to_transpose=False):
         """
@@ -137,24 +108,13 @@ class Unfolder:
             )
         self.m_response.UseOverflow(False)
 
-        # Choose unfolding method
-        if self.method == "Inversion":
-            self.m_unfolder = ROOT.RooUnfoldInvert()
-        elif self.method == "SVD":
-            self.m_unfolder = ROOT.RooUnfoldSVD()
-        elif self.method == "Bayes":
-            self.m_unfolder = ROOT.RooUnfoldBayes()
-            self.m_unfolder.SetSmoothing(0)
-        elif self.method == "BinByBin":
-            self.m_unfolder = ROOT.RooUnfoldBinByBin()
-        elif self.method == "SimNeal":
-            self.m_unfolder = QUnfoldQUBO(
-                response=TMatrix_to_array(self.m_response.Mresponse(norm=True)),
-                meas=TH1_to_array(self.h_data),
-                lam=self.parameter,
-            )
-
-        if self.method != "SimNeal":
+        # Set unfolding parameters
+        if self.method == "SimNeal":
+            self.m_unfolder.set_measured(TH1_to_array(self.h_data))
+            self.m_unfolder.set_response(TMatrix_to_array(self.m_response.Mresponse(norm=True)))
+            self.m_unfolder.set_lam_parameter(self.parameter)
+            self.m_unfolder.initialize_qubo_model()
+        else:
             self.m_unfolder.SetNToys(self.nToys)
             self.m_unfolder.SetRegParm(self.parameter)
             self.m_unfolder.SetVerbose(0)

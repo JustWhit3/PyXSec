@@ -1,6 +1,6 @@
 pytest
 hypothesis
-QUnfold
+# QUnfold
 tqdm
 uproot
 black
