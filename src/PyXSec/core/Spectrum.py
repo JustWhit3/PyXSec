@@ -159,7 +159,7 @@ class Spectrum:
             )
             self.ignore_background = True
         else:
-            log.info("Background path: {}".format(self.bkg_path))
+            log.info("Background path: {}".format(self.input_bkg_path))
 
         # Read histogram paths
         self.histo_reco_path = try_parse_str(self.histo_reco_path, root, "sig", "hpath")

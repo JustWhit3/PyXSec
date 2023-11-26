@@ -124,7 +124,7 @@ class Unfolder:
         # Unfolded distribution settings
         if self.error == "kNoError":
             if self.method == "SimNeal":
-                h_unfolded_array = self.m_unfolder.solve_simulated_annealing(num_reads=100)
+                h_unfolded_array = self.m_unfolder.solve_simulated_annealing(num_reads=50)
                 binning = [
                     self.h_data.GetXaxis().GetBinLowEdge(bin)
                     for bin in range(1, self.h_data.GetNbinsX() + 2)

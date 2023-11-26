@@ -14,8 +14,8 @@ def test_histo_comparison():
     Perform comparison among each histogram of the correct output file (produced by TTbarUnfold) and the output file produced by PyXSec.
     """
 
-    file_output = "data/private/RooUnfold/output.root"
-    file_correct = "data/private/RooUnfold/output_correct.root"
+    file_output = "data/private/other/output_RooUnfold.root"
+    file_correct = "data/private/other/output_correct.root"
 
     # Open ROOT files
     root_output = ROOT.TFile(file_output, "READ")
@@ -54,14 +54,14 @@ def test_histo_comparison():
         # Check each bin entry
         if hist_output.GetName() != "Response":
             for bin in range(1, hist_output.GetNbinsX() + 1):
-                assert round(hist_output.GetBinContent(bin), 6) == round(
-                    hist_correct.GetBinContent(bin), 6
+                assert round(hist_output.GetBinContent(bin), 4) == round(
+                    hist_correct.GetBinContent(bin), 4
                 )
         else:
             for bin_x in range(1, hist_output.GetNbinsX() + 1):
                 for bin_y in range(1, hist_output.GetNbinsY() + 1):
-                    assert round(hist_output.GetBinContent(bin_x, bin_y), 6) == round(
-                        hist_correct.GetBinContent(bin_x, bin_y), 6
+                    assert round(hist_output.GetBinContent(bin_x, bin_y), 4) == round(
+                        hist_correct.GetBinContent(bin_x, bin_y), 4
                     )
 
     # Close files

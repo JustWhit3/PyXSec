@@ -4,3 +4,5 @@ hypothesis
 tqdm
 uproot
 black
+hist
+mplhep
