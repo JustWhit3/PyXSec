@@ -55,48 +55,6 @@ def test_set_data_histogram(create_unfolder_instance):
     assert unfolder.h_data.GetName() == "unf_Data"
 
 
-def test_set_reco_histogram(create_unfolder_instance):
-    """
-    Test the set_reco_histogram method of the Unfolder class.
-
-    Args:
-        create_unfolder_instance: Fixture to create an Unfolder instance.
-
-    """
-    unfolder = create_unfolder_instance
-    histogram = ROOT.TH1D("test_reco", "Test Reco Histogram", 100, 0, 1)
-    unfolder.set_reco_histogram(histogram)
-    assert unfolder.h_reco.GetName() == "unf_SignalReco"
-
-
-def test_set_truth_histogram(create_unfolder_instance):
-    """
-    Test the set_truth_histogram method of the Unfolder class.
-
-    Args:
-        create_unfolder_instance: Fixture to create an Unfolder instance.
-
-    """
-    unfolder = create_unfolder_instance
-    histogram = ROOT.TH1D("test_truth", "Test Truth Histogram", 100, 0, 1)
-    unfolder.set_truth_histogram(histogram)
-    assert unfolder.h_truth.GetName() == "unf_SignalTruth"
-
-
-def test_set_generated_histogram(create_unfolder_instance):
-    """
-    Test the set_generated_histogram method of the Unfolder class.
-
-    Args:
-        create_unfolder_instance: Fixture to create an Unfolder instance.
-
-    """
-    unfolder = create_unfolder_instance
-    histogram = ROOT.TH1D("test_generated", "Test Generated Histogram", 100, 0, 1)
-    unfolder.set_generated_histogram(histogram)
-    assert unfolder.h_generated.GetName() == "unf_Generated"
-
-
 def test_set_response_histogram(create_unfolder_instance):
     """
     Test the set_response_histogram method of the Unfolder class.
@@ -127,9 +85,6 @@ def test_do_unfold(create_unfolder_instance):
     response_histogram = ROOT.TH2D("test_response", "Test Response Histogram", 100, 0, 1, 100, 0, 1)
 
     unfolder.set_data_histogram(data_histogram)
-    unfolder.set_reco_histogram(reco_histogram)
-    unfolder.set_truth_histogram(truth_histogram)
-    unfolder.set_generated_histogram(generated_histogram)
     unfolder.set_response_histogram(response_histogram)
 
     unfolder.do_unfold()

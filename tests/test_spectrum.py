@@ -14,8 +14,8 @@ def test_histo_comparison():
     Perform comparison among each histogram of the correct output file (produced by TTbarUnfold) and the output file produced by PyXSec.
     """
 
-    file_output = "private/RooUnfold/output.root"
-    file_correct = "private/RooUnfold/output_correct.root"
+    file_output = "data/private/RooUnfold/output.root"
+    file_correct = "data/private/RooUnfold/output_correct.root"
 
     # Open ROOT files
     root_output = ROOT.TFile(file_output, "READ")
