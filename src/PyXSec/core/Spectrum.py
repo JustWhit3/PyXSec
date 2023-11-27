@@ -172,7 +172,7 @@ class Spectrum:
         self.unfolding_parameter = try_parse_int(
             self.unfolding_parameter, root, "unfolding", "regularization"
         )
-        if self.method == "SimNeal":
+        if self.method == "SimNeal" or self.method == "HybSam":
             self.unfolding_parameter = try_parse_float(
                 self.unfolding_parameter, root, "unfolding", "regularization"
             )
@@ -685,7 +685,7 @@ class Spectrum:
             # Add smearing
             log.info("Running on \x1b[38;5;171m{}\x1b[0m toys...".format(self.nToys))
             for i in tqdm.trange(0, self.nToys, ncols=100):
-                if self.method != "SimNeal":
+                if self.method != "SimNeal" and self.method != "HybSam":
                     self.unfolder.reset()
 
                 # Data smearing

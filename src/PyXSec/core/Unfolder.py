@@ -56,7 +56,7 @@ class Unfolder:
             self.m_unfolder.SetSmoothing(0)
         elif self.method == "BinByBin":
             self.m_unfolder = ROOT.RooUnfoldBinByBin()
-        elif self.method == "SimNeal":
+        elif self.method == "SimNeal" or self.method == "HybSam":
             self.m_unfolder = QUnfoldQUBO()
 
     def set_data_histogram(self, histo):
@@ -109,7 +109,7 @@ class Unfolder:
         self.m_response.UseOverflow(False)
 
         # Set unfolding parameters
-        if self.method == "SimNeal":
+        if self.method == "SimNeal" or self.method == "HybSam":
             self.m_unfolder.set_measured(TH1_to_array(self.h_data))
             self.m_unfolder.set_response(TMatrix_to_array(self.m_response.Mresponse(norm=True)))
             self.m_unfolder.set_lam_parameter(self.parameter)
@@ -123,8 +123,11 @@ class Unfolder:
 
         # Unfolded distribution settings
         if self.error == "kNoError":
-            if self.method == "SimNeal":
-                h_unfolded_array = self.m_unfolder.solve_simulated_annealing(num_reads=50)
+            if self.method == "SimNeal" or self.method == "HybSam":
+                if self.method == "SimNeal":
+                    h_unfolded_array = self.m_unfolder.solve_simulated_annealing(num_reads=100)
+                elif self.method == "HybSam":
+                    h_unfolded_array = self.m_unfolder.solve_hybrid_sampler()
                 binning = [
                     self.h_data.GetXaxis().GetBinLowEdge(bin)
                     for bin in range(1, self.h_data.GetNbinsX() + 2)
