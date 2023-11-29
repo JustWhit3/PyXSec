@@ -20,29 +20,57 @@ from utility import compute_chi2, compute_triangular_discriminator, compute_chi2
 
 # TODO: incertezza sulla teoria?
 # TODO: scrivere i generatori
-# TODO: Nei dati generare con un generatore diverso. D/T generati con un generatore (Herwig), mentre S/G generati con un altro (Pythia)
-# TODO: Aggiungere lo smearing a mano?
 
 
 def plot_hist(qunfold, roounfold, theory, cov_qunfold, cov_roounfold):
     # Divide into subplots
-    print()
     fig = plt.figure()
     gs = fig.add_gridspec(2, 1, height_ratios=[3, 1], hspace=0)
     ax1 = fig.add_subplot(gs[0])
     ax2 = fig.add_subplot(gs[1], sharex=ax1)
+    marker_size = 3.5
 
     # Plot QUnfold data
     qunfold_val = qunfold.to_numpy()[0]
     qunfold_err = qunfold.variances()
     binning = qunfold.to_numpy()[1]
-
     bin_midpoints = 0.5 * (binning[:-1] + binning[1:])
-    chi2_val = compute_chi2(qunfold.to_numpy()[0], theory.to_numpy()[0], cov_qunfold.to_numpy()[0])
-    expo_chi2 = math.floor(math.log10(abs(chi2_val))) - 2
-    chi2_qunfold = round(chi2_val, -expo_chi2)
-    label = rf"SimNeal ($\chi^2 = {chi2_qunfold}$)"
-    marker_size = 3.5
+
+    # Compute chi2 with covariance matrix
+    if args.covariance == "yes":
+        chi2_val = compute_chi2(
+            qunfold.to_numpy()[0], theory.to_numpy()[0], cov_qunfold.to_numpy()[0]
+        )
+        expo_chi2 = math.floor(math.log10(abs(chi2_val))) - 2
+        chi2_qunfold = round(chi2_val, -expo_chi2)
+
+    # Compute chi2 without covariance matrix
+    chi2_val = compute_chi2_nocov(qunfold.to_numpy()[0], theory.to_numpy()[0])
+    expo_chi2_val = math.floor(math.log10(abs(chi2_val))) - 2
+    chi2_nocov_qunfold = round(chi2_val, -expo_chi2_val)
+
+    # Compute Triangular Discriminator metrics
+    triangular_discriminator_val = compute_triangular_discriminator(
+        qunfold.to_numpy()[0], theory.to_numpy()[0]
+    )
+    expo_triangular_discriminator = math.floor(math.log10(abs(triangular_discriminator_val))) - 2
+    triangular_discriminator_qunfold = round(
+        triangular_discriminator_val, -expo_triangular_discriminator
+    )
+
+    label = (
+        rf"QUnfold | $\chi^2 = {chi2_nocov_qunfold}$"
+        "\n"
+        rf"              | $\Delta (p,q) = {triangular_discriminator_qunfold}$"
+    )
+    if args.covariance == "yes":
+        label = (
+            rf"              | $\chi^2 (cov) = {chi2_qunfold}$"
+            "\n"
+            rf"QUnfold | $\chi^2 = {chi2_nocov_qunfold}$"
+            "\n"
+            rf"              | $\Delta (p,q) = {triangular_discriminator_qunfold}$"
+        )
 
     ax1.errorbar(
         y=qunfold_val,
@@ -59,12 +87,41 @@ def plot_hist(qunfold, roounfold, theory, cov_qunfold, cov_roounfold):
     roounfold_err = roounfold.variances()
     binning = roounfold.to_numpy()[1]
 
-    chi2_val = compute_chi2(
-        roounfold.to_numpy()[0], theory.to_numpy()[0], cov_roounfold.to_numpy()[0]
+    # Compute chi2 with covariance matrix
+    if args.covariance == "yes":
+        chi2_val = compute_chi2(
+            roounfold.to_numpy()[0], theory.to_numpy()[0], cov_roounfold.to_numpy()[0]
+        )
+        expo = math.floor(math.log10(abs(chi2_val))) - 2
+        chi2_roounfold = round(chi2_val, -expo)
+
+    # Compute chi2 without covariance matrix
+    chi2_val = compute_chi2_nocov(roounfold.to_numpy()[0], theory.to_numpy()[0])
+    expo_chi2_val = math.floor(math.log10(abs(chi2_val))) - 2
+    chi2_nocov_roounfold = round(chi2_val, -expo_chi2_val)
+
+    # Compute Triangular Discriminator metrics
+    triangular_discriminator_val = compute_triangular_discriminator(
+        roounfold.to_numpy()[0], theory.to_numpy()[0]
     )
-    expo = math.floor(math.log10(abs(chi2_val))) - 2
-    chi2_roounfold = round(chi2_val, -expo)
-    label = rf"IBU ($\chi^2 = {chi2_roounfold}$)"
+    expo_triangular_discriminator = math.floor(math.log10(abs(triangular_discriminator_val))) - 2
+    triangular_discriminator_roounfold = round(
+        triangular_discriminator_val, -expo_triangular_discriminator
+    )
+
+    label = (
+        rf"RooUnfold  | $\chi^2 = {chi2_nocov_roounfold}$"
+        "\n"
+        rf"                  | $\Delta (p,q) = {triangular_discriminator_roounfold}$"
+    )
+    if args.covariance == "yes":
+        label = (
+            rf"                  | $\chi^2 (cov) = {chi2_roounfold}$"
+            "\n"
+            rf"RooUnfold  | $\chi^2 = {chi2_nocov_roounfold}$"
+            "\n"
+            rf"                  | $\Delta (p,q) = {triangular_discriminator_roounfold}$"
+        )
 
     ax1.errorbar(
         y=roounfold_val,
@@ -107,6 +164,9 @@ def plot_hist(qunfold, roounfold, theory, cov_qunfold, cov_roounfold):
         label=label,
     )
 
+    # Add MC names
+    # plt.text(2.5, max(theory_val) + 1, "aaaa", ha="center", va="bottom", fontsize=12)
+
     # Plot style settings
     ax1.tick_params(axis="x", which="both", bottom=True, top=False, direction="in")
     ax2.tick_params(axis="x", which="both", bottom=True, top=True, direction="in")
@@ -135,49 +195,12 @@ def plot_hist(qunfold, roounfold, theory, cov_qunfold, cov_roounfold):
     plt.tight_layout()
     plt.savefig("studies/img/comparisons/AbsoluteDiffXs.png")
 
-    # Compute Triangular Discriminator metrics
-    triangular_discriminator_val = compute_triangular_discriminator(
-        qunfold.to_numpy()[0], theory.to_numpy()[0]
-    )
-    expo_triangular_discriminator = math.floor(math.log10(abs(triangular_discriminator_val))) - 2
-    triangular_discriminator_qunfold = round(
-        triangular_discriminator_val, -expo_triangular_discriminator
-    )
-
-    triangular_discriminator_val = compute_triangular_discriminator(
-        roounfold.to_numpy()[0], theory.to_numpy()[0]
-    )
-    expo_triangular_discriminator = math.floor(math.log10(abs(triangular_discriminator_val))) - 2
-    triangular_discriminator_roounfold = round(
-        triangular_discriminator_val, -expo_triangular_discriminator
-    )
-
-    # Compute Chi2 without covariance metric
-    chi2_val = compute_chi2_nocov(qunfold.to_numpy()[0], theory.to_numpy()[0])
-    expo_chi2_val = math.floor(math.log10(abs(chi2_val))) - 2
-    chi2_nocov_qunfold = round(chi2_val, -expo_chi2_val)
-
-    chi2_val = compute_chi2_nocov(roounfold.to_numpy()[0], theory.to_numpy()[0])
-    expo_chi2_val = math.floor(math.log10(abs(chi2_val))) - 2
-    chi2_nocov_roounfold = round(chi2_val, -expo_chi2_val)
-
-    # Show metrics
-    print(qunfold.name, ": ")
-    print("- SimNeal:")
-    print("--> Chi2 =", chi2_qunfold)
-    print("--> Chi2 (nocov) =", chi2_nocov_qunfold)
-    print("--> TriangularDiscr =", triangular_discriminator_qunfold)
-
-    print("- IBU:")
-    print("--> Chi2 =", chi2_roounfold)
-    print("--> Chi2 (nocov) =", chi2_nocov_roounfold)
-    print("--> TriangularDiscr =", triangular_discriminator_roounfold)
-
 
 def main():
     # Initial message
     print("RooUnfold file: {}".format(args.roounfold))
     print("QUnfold file: {}".format(args.qunfold))
+    print("Theory file: {}".format(args.theory))
 
     # Create output dirs
     if not os.path.exists("studies/img/comparisons"):
@@ -186,13 +209,20 @@ def main():
     # Read QUnfold information
     file_QUnfold = uproot.open(args.qunfold)
     abs_Xs_QUnfold = file_QUnfold["AbsoluteDiffXs"]
-    abs_theory = file_QUnfold["TheoryXs_abs"]
-    abs_covariance_QUnfold = file_QUnfold["Covariance_abs"]
+    abs_covariance_QUnfold = []
+    if args.covariance == "yes":
+        abs_covariance_QUnfold = file_QUnfold["Covariance_abs"]
 
     # Read RooUnfold information
     file_RooUnfold = uproot.open(args.roounfold)
     abs_Xs_RooUnfold = file_RooUnfold["AbsoluteDiffXs"]
-    abs_covariance_RooUnfold = file_RooUnfold["Covariance_abs"]
+    abs_covariance_RooUnfold = []
+    if args.covariance == "yes":
+        abs_covariance_RooUnfold = file_RooUnfold["Covariance_abs"]
+
+    # Read theory information
+    file_theory = uproot.open(args.theory)
+    abs_theory = file_theory["TheoryXs_abs"]
 
     # Plot stuff
     plot_hist(
@@ -218,6 +248,18 @@ if __name__ == "__main__":
         "--roounfold",
         default="",
         help="Input root file with RooUnfold results.",
+    )
+    parser.add_argument(
+        "-t",
+        "--theory",
+        default="",
+        help="Input root file with theory results.",
+    )
+    parser.add_argument(
+        "-c",
+        "--covariance",
+        default="",
+        help="Input root file with covariance matrices.",
     )
     args = parser.parse_args()
 

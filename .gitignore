@@ -7,5 +7,6 @@ private
 **/.hypothesis
 **/delphes
 **/*.root
-data
+data/nominal
+data/simulated
 **/img

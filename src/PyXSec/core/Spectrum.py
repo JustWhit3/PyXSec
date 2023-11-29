@@ -210,7 +210,11 @@ class Spectrum:
         """
 
         # Load data histogram
-        log.info("Loading data histogram file from: {}".format(self.input_data_path))
+        log.info(
+            "Loading data histogram file from: \x1b[38;5;171m{0}\x1b[0m".format(
+                self.input_data_path
+            )
+        )
         f_temp = ROOT.TFile.Open(self.input_data_path)
         h_temp = None
         f_temp.cd()
