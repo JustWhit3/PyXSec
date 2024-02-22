@@ -1,11 +1,3 @@
-# ---------------------- Metadata ----------------------
-#
-# File name:  file_comparison.py
-# Author:     Gianluca Bianco (biancogianluca9@gmail.com)
-# Date:       2023-11-14
-# Copyright:  (c) 2023 Gianluca Bianco under the MIT license.
-
-# Data science modules
 import ROOT
 
 

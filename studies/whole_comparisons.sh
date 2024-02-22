@@ -15,10 +15,10 @@ background="data/nominal/input/mc.AllBkg.nominal.observables_final.v34_2.root"
 selection_reco="2j2b70_emu"
 selection_particle="2j2b_emu"
 variables="m_l1l2 pT_lep1 pT_lep2 pT_jet1 pT_jet2 m_bbll mT_ttbar pT_b1b2 pT_ttbar pT_bbll"
-toys="100"
+toys="0"
 data_dir="data/nominal/output"
 systematic="nominal"
-covariance="yes"
+covariance="no"
 
 for var in ${variables}
 do

@@ -37,7 +37,7 @@ To setup the environment for `PyXSec` development you need two dependencies:
 To setup the `conda` conda environment to work with the repository (only the first time):
 
 ```shell
-conda create --name pyxsec-dev python==3.8
+conda create --name pyxsec-dev python==3.10
 conda activate pyxsec-dev
 pip install -r requirements.txt
 pip cache purge && pip check

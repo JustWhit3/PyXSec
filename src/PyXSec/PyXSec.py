@@ -1,13 +1,3 @@
-#!/usr/bin/env python
-# -*- coding: utf-8 -*-
-
-# ---------------------- Metadata ----------------------
-#
-# File name:  PyXSec.py
-# Author:     Gianluca Bianco (biancogianluca9@gmail.com)
-# Date:       2023-11-06
-# Copyright:  (c) 2023 Gianluca Bianco under the MIT license.
-
 import argparse as ap
 from core.Spectrum import Spectrum
 

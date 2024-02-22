@@ -1,11 +1,3 @@
-# ---------------------- Metadata ----------------------
-#
-# File name:  Generic.py
-# Author:     Gianluca Bianco (biancogianluca9@gmail.com)
-# Date:       2023-11-08
-# Copyright:  (c) 2023 Gianluca Bianco under the MIT license.
-
-
 def try_parse_str(var, root, key, elem):
     """
     Tries to parse an attribute from an XML element as a string.

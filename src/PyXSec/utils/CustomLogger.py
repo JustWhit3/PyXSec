@@ -1,10 +1,3 @@
-# ---------------------- Metadata ----------------------
-#
-# File name:  CustomLogger.py
-# Author:     Gianluca Bianco (biancogianluca9@gmail.com)
-# Date:       2023-11-07
-# Copyright:  (c) 2023 Gianluca Bianco under the MIT license.
-
 import logging
 
 
@@ -34,7 +27,9 @@ class CustomColoredFormatter(logging.Formatter):
         """
 
         log_color = self.COLORS.get(record.levelname, self.COLORS["RESET"])
-        record.levelname = f"{log_color}{record.levelname}\033[0m"  # Reset color after levelname
+        record.levelname = (
+            f"{log_color}{record.levelname}\033[0m"  # Reset color after levelname
+        )
         return super().format(record)
 
 

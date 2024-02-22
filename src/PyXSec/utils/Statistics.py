@@ -1,11 +1,3 @@
-# ---------------------- Metadata ----------------------
-#
-# File name:  Statistics.py
-# Author:     Gianluca Bianco (biancogianluca9@gmail.com)
-# Date:       2023-11-08
-# Copyright:  (c) 2023 Gianluca Bianco under the MIT license.
-
-# Data science modules
 import ROOT
 from array import array
 

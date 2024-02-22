@@ -1,20 +1,8 @@
-# ---------------------- Metadata ----------------------
-#
-# File name:  Spectrum.py
-# Author:     Gianluca Bianco (biancogianluca9@gmail.com)
-# Date:       2023-11-06
-# Copyright:  (c) 2023 Gianluca Bianco under the MIT license.
-
-# Generic modules
 import xml.etree.ElementTree as et
 import sys
 import math
 import tqdm
-
-# Data science modules
 import ROOT
-
-# Personal modules
 from core.Unfolder import Unfolder
 from utils import (
     get_custom_logger,
@@ -163,7 +151,9 @@ class Spectrum:
 
         # Read histogram paths
         self.histo_reco_path = try_parse_str(self.histo_reco_path, root, "sig", "hpath")
-        self.histo_data_path = try_parse_str(self.histo_data_path, root, "data", "hpath")
+        self.histo_data_path = try_parse_str(
+            self.histo_data_path, root, "data", "hpath"
+        )
         self.histo_res_path = try_parse_str(self.histo_res_path, root, "res", "hpath")
         self.histo_gen_path = try_parse_str(self.histo_gen_path, root, "gen", "hpath")
 
@@ -191,7 +181,9 @@ class Spectrum:
         )
 
         # Print unfolding information
-        log.info("Unfolding the \x1b[38;5;171m{0}\x1b[0m systematic".format(self.syst_name))
+        log.info(
+            "Unfolding the \x1b[38;5;171m{0}\x1b[0m systematic".format(self.syst_name)
+        )
         log.info(
             "Unfolding using \x1b[38;5;171m{0}\x1b[0m method with unfolding parameter set to \x1b[38;5;171m{1}\x1b[0m".format(
                 self.method, self.unfolding_parameter
@@ -231,7 +223,11 @@ class Spectrum:
         f_temp.Close()
         self.h_data.ClearUnderflowAndOverflow()
         self.h_data.Scale(self.reco_scale_factor)
-        log.info("Rescaling the data by \x1b[38;5;171m{}\x1b[0m".format(self.reco_scale_factor))
+        log.info(
+            "Rescaling the data by \x1b[38;5;171m{}\x1b[0m".format(
+                self.reco_scale_factor
+            )
+        )
         self.h_data.SetName("Data_{}".format(self.syst_name))
 
         # Load signal-reco histogram
@@ -256,7 +252,9 @@ class Spectrum:
 
         # Load response matrix
         log.info(
-            "Loading response matrix file from: \x1b[38;5;171m{}\x1b[0m".format(self.input_res_path)
+            "Loading response matrix file from: \x1b[38;5;171m{}\x1b[0m".format(
+                self.input_res_path
+            )
         )
         f_temp = ROOT.TFile.Open(self.input_res_path)
         f_temp.cd()
@@ -277,8 +275,12 @@ class Spectrum:
                 )
                 for i in range(1, h_response_temp.GetNbinsY() + 1):
                     for j in range(1, h_response_temp.GetNbinsX() + 1):
-                        self.h_response.SetBinContent(j, i, h_response_temp.GetBinContent(j, i))
-                        self.h_response.SetBinError(j, i, h_response_temp.GetBinError(j, i))
+                        self.h_response.SetBinContent(
+                            j, i, h_response_temp.GetBinContent(j, i)
+                        )
+                        self.h_response.SetBinError(
+                            j, i, h_response_temp.GetBinError(j, i)
+                        )
             else:
                 self.h_response = h_response_temp.Clone()
         else:
@@ -322,7 +324,8 @@ class Spectrum:
         self.m_nbins = self.h_generated.GetNbinsX()
         self.h_generated.ClearUnderflowAndOverflow()
         self.m_bins = [
-            self.h_generated.GetXaxis().GetXbins().At(i) for i in range(self.m_nbins + 1)
+            self.h_generated.GetXaxis().GetXbins().At(i)
+            for i in range(self.m_nbins + 1)
         ]
 
         # Loading background histogram
@@ -359,7 +362,9 @@ class Spectrum:
             self.output = "{0}_{1}_{2}_DiffXs.root".format(
                 self.syst_name, self.method, self.unfolding_parameter
             )
-            log.warning("Output file path not provided. Setting it to {}".format(self.output))
+            log.warning(
+                "Output file path not provided. Setting it to {}".format(self.output)
+            )
         self.m_output = ROOT.TFile.Open(self.output, "RECREATE")
         if self.is_initialized == True:
             log.warning(
@@ -389,7 +394,9 @@ class Spectrum:
         )
         self.h_response.GetYaxis().SetTitleOffset(1.05)
         self.h_response.SetTitle(
-            "{}(particle)".format(self.h_data.GetXaxis().GetTitle().replace("Detector-level ", ""))
+            "{}(particle)".format(
+                self.h_data.GetXaxis().GetTitle().replace("Detector-level ", "")
+            )
         )
         self.h_response.SetName("Response")
 
@@ -413,7 +420,9 @@ class Spectrum:
         # Initialize unfolder settings
         staterr_arr = self.staterr.split(":")
         if len(staterr_arr) == 1 and staterr_arr[0] == "analytical":
-            self.unfolder = Unfolder(self.method, "kCovToy", self.unfolding_parameter, self.nToys)
+            self.unfolder = Unfolder(
+                self.method, "kCovToy", self.unfolding_parameter, self.nToys
+            )
         else:
             self.unfolder = Unfolder(self.method, "kNoError", self.unfolding_parameter)
             if len(staterr_arr) == 1 and staterr_arr[0] == "toys":
@@ -423,7 +432,11 @@ class Spectrum:
                     self.m_toy_type = "Gauss"
             elif len(staterr_arr) == 2 and staterr_arr[0] == "toys":
                 self.m_toy_type = staterr_arr[1]
-            log.info("Statistical uncertainty evaluated using {0} toys".format(self.m_toy_type))
+            log.info(
+                "Statistical uncertainty evaluated using {0} toys".format(
+                    self.m_toy_type
+                )
+            )
         self.is_initialized = True
 
     @staticmethod
@@ -705,7 +718,9 @@ class Spectrum:
                 self.unfolder.set_response_histogram(h_response_smeared)
                 if self.ignore_background == False:
                     h_data_smeared_corrected.Add(h_bkg_smeared, -1)
-                h_data_smeared_corrected.Multiply(h_acceptance_smeared)  # Nominal acceptance
+                h_data_smeared_corrected.Multiply(
+                    h_acceptance_smeared
+                )  # Nominal acceptance
 
                 # Unfold again
                 self.unfolder.set_data_histogram(h_data_smeared_corrected)
@@ -826,7 +841,9 @@ class Spectrum:
         ROOT.gDirectory.cd()
 
         # Signal truth histogram
-        self.h_signal_truth = self.h_response.ProjectionY("SignalTruth", 1, self.m_nbins)
+        self.h_signal_truth = self.h_response.ProjectionY(
+            "SignalTruth", 1, self.m_nbins
+        )
         self.h_signal_truth.SetDirectory(self.m_output)
 
         # Evaluate the efficiency
@@ -840,7 +857,9 @@ class Spectrum:
         self.h_acceptance.SetDirectory(self.m_output)
 
         # Data - background subtraction
-        h_data_minus_background_corrected = self.h_data_minus_bkg.Clone("DataMinusBkgCorrected")
+        h_data_minus_background_corrected = self.h_data_minus_bkg.Clone(
+            "DataMinusBkgCorrected"
+        )
         h_data_minus_background_corrected.SetTitle("(Data - Bkg ) x Acceptance")
         h_data_minus_background_corrected.SetDirectory(self.m_output)
         h_data_minus_background_corrected.Multiply(self.h_acceptance)
@@ -860,7 +879,11 @@ class Spectrum:
         # Apply efficiency correction
         self.h_absXs.Divide(self.h_efficiency)
         self.m_totalXs = self.h_absXs.Integral()
-        log.info("Total cross-section (abs/eff): \x1b[38;5;171m{}\x1b[0m".format(self.m_totalXs))
+        log.info(
+            "Total cross-section (abs/eff): \x1b[38;5;171m{}\x1b[0m".format(
+                self.m_totalXs
+            )
+        )
         self.h_relXs = self.h_absXs.Clone("RelativeDiffXs")
         self.h_relXs.Scale(1.0 / self.m_totalXs)
         divide_by_bin_width(self.h_relXs)

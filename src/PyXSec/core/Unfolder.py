@@ -1,13 +1,4 @@
-# ---------------------- Metadata ----------------------
-#
-# File name:  Unfolder.py
-# Author:     Gianluca Bianco (biancogianluca9@gmail.com)
-# Date:       2023-11-09
-# Copyright:  (c) 2023 Gianluca Bianco under the MIT license.
-
-# Data science modules
 import ROOT
-
 from QUnfold import QUnfoldQUBO
 from QUnfold.utility import TMatrix_to_array, TH1_to_array
 
@@ -111,7 +102,9 @@ class Unfolder:
         # Set unfolding parameters
         if self.method == "SimNeal" or self.method == "HybSam":
             self.m_unfolder.set_measured(TH1_to_array(self.h_data))
-            self.m_unfolder.set_response(TMatrix_to_array(self.m_response.Mresponse(norm=True)))
+            self.m_unfolder.set_response(
+                TMatrix_to_array(self.m_response.Mresponse(norm=True))
+            )
             self.m_unfolder.set_lam_parameter(self.parameter)
             self.m_unfolder.initialize_qubo_model()
         else:
@@ -125,9 +118,11 @@ class Unfolder:
         if self.error == "kNoError":
             if self.method == "SimNeal" or self.method == "HybSam":
                 if self.method == "SimNeal":
-                    h_unfolded_array = self.m_unfolder.solve_simulated_annealing(num_reads=100)
+                    h_unfolded_array, _, _, _ = (
+                        self.m_unfolder.solve_simulated_annealing(num_reads=100)
+                    )
                 elif self.method == "HybSam":
-                    h_unfolded_array = self.m_unfolder.solve_hybrid_sampler()
+                    h_unfolded_array, _, _, _ = self.m_unfolder.solve_hybrid_sampler()
                 binning = [
                     self.h_data.GetXaxis().GetBinLowEdge(bin)
                     for bin in range(1, self.h_data.GetNbinsX() + 2)

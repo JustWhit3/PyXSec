@@ -1,14 +1,4 @@
-# ---------------------- Metadata ----------------------
-#
-# File name:  test_generic.py
-# Author:     Gianluca Bianco (biancogianluca9@gmail.com)
-# Date:       2023-11-15
-# Copyright:  (c) 2023 Gianluca Bianco under the MIT license.
-
-# STD modules
 import xml.etree.ElementTree as ET
-
-# My modules
 from utils import try_parse_str, try_parse_float, try_parse_int
 
 

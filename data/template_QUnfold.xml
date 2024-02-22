@@ -7,7 +7,7 @@
     <lumi value="140068.94" />
     <br value="1"/> 
     <do_total value="0" />
-    <unfolding method="SimNeal" regularization="0.0" statErr="toys:Gauss" ntoys="@TOYS@" />
+    <unfolding method="SimNeal" regularization="0" statErr="toys:Gauss" ntoys="@TOYS@" />
     <spectrum particle="@RECO@" variable="@VARIABLE@" />
     <reco_scale value="1" />
 </configuration>

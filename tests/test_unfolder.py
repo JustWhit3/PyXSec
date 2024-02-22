@@ -1,17 +1,5 @@
-# ---------------------- Metadata ----------------------
-#
-# File name:  test_generic.py
-# Author:     Gianluca Bianco (biancogianluca9@gmail.com)
-# Date:       2023-11-15
-# Copyright:  (c) 2023 Gianluca Bianco under the MIT license.
-
-# Testing modules
 import pytest
-
-# Data science modules
 import ROOT
-
-# My modules
 from core import Unfolder
 
 
@@ -64,7 +52,9 @@ def test_set_response_histogram(create_unfolder_instance):
 
     """
     unfolder = create_unfolder_instance
-    histogram = ROOT.TH2D("test_response", "Test Response Histogram", 100, 0, 1, 100, 0, 1)
+    histogram = ROOT.TH2D(
+        "test_response", "Test Response Histogram", 100, 0, 1, 100, 0, 1
+    )
     unfolder.set_response_histogram(histogram)
     assert unfolder.h_response.GetName() == "unf_Response"
 
@@ -81,8 +71,12 @@ def test_do_unfold(create_unfolder_instance):
     data_histogram = ROOT.TH1D("test_data", "Test Data Histogram", 100, 0, 1)
     reco_histogram = ROOT.TH1D("test_reco", "Test Reco Histogram", 100, 0, 1)
     truth_histogram = ROOT.TH1D("test_truth", "Test Truth Histogram", 100, 0, 1)
-    generated_histogram = ROOT.TH1D("test_generated", "Test Generated Histogram", 100, 0, 1)
-    response_histogram = ROOT.TH2D("test_response", "Test Response Histogram", 100, 0, 1, 100, 0, 1)
+    generated_histogram = ROOT.TH1D(
+        "test_generated", "Test Generated Histogram", 100, 0, 1
+    )
+    response_histogram = ROOT.TH2D(
+        "test_response", "Test Response Histogram", 100, 0, 1, 100, 0, 1
+    )
 
     unfolder.set_data_histogram(data_histogram)
     unfolder.set_response_histogram(response_histogram)

@@ -1,17 +1,5 @@
-# ---------------------- Metadata ----------------------
-#
-# File name:  test_statistics.py
-# Author:     Gianluca Bianco (biancogianluca9@gmail.com)
-# Date:       2023-11-14
-# Copyright:  (c) 2023 Gianluca Bianco under the MIT license.
-
-# Testing modules
 from hypothesis import given, strategies as st
-
-# Data science modules
 import ROOT
-
-# Import the functions to be tested
 from utils import transpose_matrix, divide_by_bin_width, array_to_TH1D
 
 
