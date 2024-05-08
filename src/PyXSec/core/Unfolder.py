@@ -1,6 +1,6 @@
 import ROOT
 from QUnfold import QUnfoldQUBO
-from QUnfold.utility import TMatrix_to_array, TH1_to_array
+from QUnfold.utility import TH1_to_array, TH2_to_array, normalize_response
 
 # Personal modules
 from utils import transpose_matrix, array_to_TH1D
@@ -101,10 +101,12 @@ class Unfolder:
 
         # Set unfolding parameters
         if self.method == "SimNeal" or self.method == "HybSam":
-            self.m_unfolder.set_measured(TH1_to_array(self.h_data))
-            self.m_unfolder.set_response(
-                TMatrix_to_array(self.m_response.Mresponse(norm=True))
+            self.m_unfolder.set_measured(TH1_to_array(self.h_data, overflow=True))
+            response = normalize_response(
+                TH2_to_array(self.m_response.Hresponse(), overflow=True),
+                TH1_to_array(self.m_response.Htruth(), overflow=True),
             )
+            self.m_unfolder.set_response(response)
             self.m_unfolder.set_lam_parameter(self.parameter)
             self.m_unfolder.initialize_qubo_model()
         else:
@@ -119,7 +121,7 @@ class Unfolder:
             if self.method == "SimNeal" or self.method == "HybSam":
                 if self.method == "SimNeal":
                     h_unfolded_array, _, _, _ = (
-                        self.m_unfolder.solve_simulated_annealing(num_reads=100)
+                        self.m_unfolder.solve_simulated_annealing(num_reads=200)
                     )
                 elif self.method == "HybSam":
                     h_unfolded_array, _, _, _ = self.m_unfolder.solve_hybrid_sampler()
@@ -128,7 +130,7 @@ class Unfolder:
                     for bin in range(1, self.h_data.GetNbinsX() + 2)
                 ]
                 self.h_unfolded = array_to_TH1D(
-                    bin_contents=h_unfolded_array,
+                    bin_contents=h_unfolded_array[1:-1],
                     binning=binning,
                     name=self.h_response.GetTitle(),
                     x_axis_name=self.h_data.GetXaxis().GetTitle(),
