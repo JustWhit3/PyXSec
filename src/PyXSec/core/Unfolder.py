@@ -121,7 +121,7 @@ class Unfolder:
             if self.method == "SimNeal" or self.method == "HybSam":
                 if self.method == "SimNeal":
                     h_unfolded_array, _, _, _ = (
-                        self.m_unfolder.solve_simulated_annealing(num_reads=200)
+                        self.m_unfolder.solve_simulated_annealing(num_reads=100)
                     )
                 elif self.method == "HybSam":
                     h_unfolded_array, _, _, _ = self.m_unfolder.solve_hybrid_sampler()
